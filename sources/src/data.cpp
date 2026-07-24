@@ -19,7 +19,9 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #include "rodent.h"
 
-int POS::msCastleMask[64];
+// msCastleMask, Castle_W/B_*, CastleMask_W/B_* and CastleFile_* are per-instance
+// cGlobals members now (Glob.*) -- they are rewritten on every SetPosition, so as
+// process-global state they raced across concurrent instances (phase 4).
 
 const int tp_value[7] = { 100, 325, 325, 500, 1000,  0,   0 };
 const int ph_value[7] = {   0,   1,   1,   2,    4,  0,   0 }; // any change requires modification in draw.cpp
@@ -27,18 +29,6 @@ const int ph_value[7] = {   0,   1,   1,   2,    4,  0,   0 }; // any change req
 U64 POS::msZobPiece[12][64];
 U64 POS::msZobCastle[16];
 U64 POS::msZobEp[8];
-
-eSquare POS::Castle_W_RQ;
-eSquare POS::Castle_W_K;
-eSquare POS::Castle_W_RK;
-eSquare POS::Castle_B_RQ;
-eSquare POS::Castle_B_K;
-eSquare POS::Castle_B_RK;
-
-// Written once in Init960() and read-only thereafter (like BB/Mask/Dist), so left
-// process-global -- see the phase-3 audit list in PLAN_RODENT.md.
-unsigned char CastleFile_RQ;
-unsigned char CastleFile_RK;
 
 const unsigned char POS::CastleMask [8][8] = {
 	{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}, // K-A
@@ -50,21 +40,74 @@ const unsigned char POS::CastleMask [8][8] = {
 	{0x3E,0x3C,0x38,0x34,0x2C,0x1C,0x00,0x20}, // K-G
 	{0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}  // K-H
 };
-U64 POS::CastleMask_W_KS;
-U64 POS::CastleMask_W_QS;
-U64 POS::CastleMask_B_KS;
-U64 POS::CastleMask_B_QS;
 
-#ifndef NO_THREADS
-    // SMP per-worker depth tracking; folds into the per-instance engine with the
-    // rest of the SMP state (Engines) in phase 4 -- see PLAN_RODENT.md audit list.
-    int tDepth[MAX_THREADS];
-#endif
-int cEngine::msMoveTime;
-int cEngine::msMoveNodes;
-int cEngine::msSearchDepth;
-int cEngine::msStartTime;
+// tDepth[] (SMP per-worker depth tracking) moved into the per-instance cGlobals in
+// phase 4: it is one instance's Lazy-SMP coordination, shared by that instance's
+// workers -- NOT across instances. As a process-global it made two concurrent
+// engines clobber each other's tDepth[0] (caught by the multi-instance test).
+// cEngine::msMoveTime/msMoveNodes/msSearchDepth/msStartTime were defined here; the
+// per-search budget now lives in the per-instance cGlobals (Glob.moveTime etc.), phase 4.
 
 std::wstring RodentHomeDirWStr;
 std::wstring LogFileWStr;
 bool SkipBeginningOfLog;
+
+// Read-only after their Init() calls; safe to share process-wide across instances
+// (they get a std::call_once guard via rodent::Engine). Defined here in a library
+// TU -- not in the adapter main.cpp -- so the multi-instance test links them too.
+cBitBoard BB;
+cMask     Mask;
+cDistance Dist;
+
+// The calling thread's current EngineContext (phase 4). Set at each thread entry:
+// the classic exe's main(), rodent::Engine's driving thread, each SMP worker
+// (StartThinkThread) and the search timer thread (ParseGo). Null until then, which
+// is fine because no engine code runs before some thread sets it.
+thread_local EngineContext* tls_ctx = nullptr;
+
+// cGlobals::Init / CanReadBook lived in main.cpp; moved here in phase 4 so they are
+// part of the engine library, not the standalone-executable adapter.
+void cGlobals::Init() {
+
+	isNoisy = false;
+    isTesting = false;
+    isBenching = false;
+    isTuning = false;
+    useTaunting = false;
+    printPv = true;
+    isReadingPersonality = false;
+    usePersonalityFiles = true;
+    useBooksFromPers = true;
+    showPersonalityFile = false;
+    numberOfThreads = 1;
+	if (Glob.threadOverride)
+		numberOfThreads = Glob.threadOverride;
+	timeBuffer = 10; // blitz under Arena would require something like 200, but it's user's job
+	game_key = 0;
+
+    // Clearing  and  setting threads  may  be  necessary
+    // if we need a compile using a bigger default number
+    // of threads for testing purposes
+
+#ifdef USE_THREADS
+    if (numberOfThreads > 1) { //-V547 get rid of PVS Studio warning
+        Engines.clear();
+        for (int i = 0; i < numberOfThreads; i++)
+            Engines.emplace_back(i);
+    }
+#endif
+
+    shouldClear = false;
+    goodbye = false; // set true when quit/EOF arrives during a search (see CheckTimeout)
+    isConsole = true;
+    eloSlider = true;
+	multiPv = 1;
+    CastleNotation = KingMove;
+    useUciPersonalitySet = false;
+    personalityW = "";
+    personalityB = "";
+}
+
+bool cGlobals::CanReadBook() {
+    return (useBooksFromPers == isReadingPersonality || !usePersonalityFiles);
+}

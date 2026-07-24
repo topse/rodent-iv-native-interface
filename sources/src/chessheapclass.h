@@ -1,6 +1,21 @@
+/*
+Part of Rodent IV, a UCI chess engine derived from Sungorus 1.4 (GPL-3.0-or-later).
+Copyright (C) 2009-2011 Pablo Vazquez; 2011-2019 Pawel Koziol; 2020 Bernhard C. Maerz.
+Modified 2026 by T. Steinmann (Rodent IV libification fork).
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version. See
+<http://www.gnu.org/licenses/>.
+*/
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#ifdef USE_THREADS
+    #include <atomic>
+    #include <memory>
+#endif
 
 
 class ChessHeapClass {
@@ -15,6 +30,16 @@ class ChessHeapClass {
 
     unsigned int tt_size;
     unsigned int tt_mask;
+
+    // Per-instance now (phase 4). prev_size was a function-local static in
+    // AllocTrans and the aflags[] lock arrays were file-scope globals in trans.cpp,
+    // so with N engines only the first allocated its table and all instances shared
+    // one set of TT locks. Both are per-instance TT state; each engine gets its own.
+    unsigned int prev_size;
+#ifdef USE_THREADS
+    std::unique_ptr<std::atomic_flag[]> aflags0;
+    std::unique_ptr<std::atomic_flag[]> aflags1;
+#endif
 
     bool success;
 
@@ -68,7 +93,7 @@ class ChessHeapClass {
 
     int tt_date;
 
-    ChessHeapClass(): bucket_ptrs{}, success{false} {};
+    ChessHeapClass(): bucket_ptrs{}, prev_size{0}, success{false} {};
 
     ~ChessHeapClass() {
 

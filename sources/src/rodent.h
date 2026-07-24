@@ -67,8 +67,18 @@ If not, see <http://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <cinttypes>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
+#include <functional>
 #include "stringfunctions.h"
+
+// Phase 4: per-instance engine state lives in EngineContext (defined at the end of
+// this header). Each thread that runs engine code carries a pointer to its own
+// context in tls_ctx; the Glob/Par/Trans/Sink/book/Engines names below resolve to
+// that context (see the macros at the end). Forward-declared here so cEngine's
+// inline StartThinkThread can propagate the pointer to its worker thread.
+struct EngineContext;
+extern thread_local EngineContext* tls_ctx;
 
 //#define USE_TUNING
 
@@ -380,23 +390,15 @@ struct UNDO {
 };
 
 class POS {
-    static int msCastleMask[64];
+    // msCastleMask, Castle_W/B_*, CastleMask_W/B_* and CastleFile_* moved to the
+    // per-instance cGlobals (Glob.*) in phase 4 -- they are rewritten per position.
+    // The zobrist keys below and the const CastleMask[8][8] lookup stay POS statics
+    // (write-once / read-only, shared behind call_once).
     static U64 msZobPiece[12][64];
     static U64 msZobCastle[16];
     static U64 msZobEp[8];
 
-    static eSquare Castle_W_RQ;
-    static eSquare Castle_W_K;
-    static eSquare Castle_W_RK;
-    static eSquare Castle_B_RQ;
-    static eSquare Castle_B_K;
-    static eSquare Castle_B_RK;
-
     static const unsigned char CastleMask [8][8];  // Var2
-    static U64 CastleMask_W_KS;
-    static U64 CastleMask_W_QS;
-    static U64 CastleMask_B_KS;
-    static U64 CastleMask_B_QS;
 
     void ClearPosition();
     void InitHashKey();
@@ -693,7 +695,7 @@ class cParam {
     void SetVal(int slot, int val, int min, int max, bool tune);
 };
 
-extern cParam& Par;
+// Par is a per-instance macro now (end of this header), not a global reference.
 
 class cDistance {
   public:
@@ -779,6 +781,28 @@ extern cMask Mask;
     using glob_U64  = uint64_t;
 #endif
 
+// Personality-alias tables loaded from basic.ini / personality files. These are
+// per-instance cGlobals members (phase 4): written by ReadPersonality at engine
+// construction and read by the uci/setoption handlers -- all on the instance's
+// driving thread, never during search. As file-scope globals in uci_options.cpp
+// they raced across concurrent instances (found by the multi-instance suite/TSan).
+// count defaults to 0 so they are safe as non-static (per-rodent::Engine) storage.
+#define PERSALIAS_ALEN       32     // max length for a personality alias
+#define PERSALIAS_PLEN       256    // max length for an alias path
+#define PERSALIAS_MAXALIASES 100    // max number of aliases
+struct sPersAliases {
+    char alias[PERSALIAS_MAXALIASES][PERSALIAS_ALEN];
+    char path[PERSALIAS_MAXALIASES][PERSALIAS_PLEN];
+    int count = 0;
+};
+
+#define PERSSETALIAS_LEN     32     // max length for a personality-set alias
+struct sPersSets {
+    char alias[10][PERSSETALIAS_LEN]; // use one-digit-number for sets, so max-value fixed
+    int count = 0;
+    int used = 0;
+};
+
 class cGlobals {
   public:
     glob_int finishedDepth;
@@ -790,6 +814,11 @@ class cGlobals {
 	bool isNoisy;
     bool eloSlider;
     bool isConsole;
+    // Poll stdin for stop/quit during a search (CheckTimeout). Only the standalone
+    // executable adapter owns process stdin and sets this true; an embedded
+    // rodent::Engine leaves it false so the search is never interrupted by (and
+    // never steals) the host process's stdin. (phase 4)
+    bool pollStdin;
     bool isTuning;
     bool useTaunting;
     bool printPv;
@@ -810,6 +839,37 @@ class cGlobals {
     int numberOfThreads;
 	int multiPv;
     int timeBuffer;
+    int moveTime;         // per-search time budget in ms (-1 = none); was cEngine::msMoveTime
+    int moveNodes;        // per-search node limit (0 = none); was cEngine::msMoveNodes
+    int searchDepth;      // per-search depth limit; was cEngine::msSearchDepth
+    int startTime;        // search start clock (GetMS()); was cEngine::msStartTime
+#ifndef NO_THREADS
+    int tDepth[MAX_THREADS]; // Lazy-SMP per-worker root depth (this instance's workers); was a global
+#endif
+    // Castle configuration of the current position (phase 4). These were POS class
+    // statics / CastleFile_* file-globals; Init960() (called from every SetPosition)
+    // rewrites them from the FEN castling field, so two instances setting positions /
+    // searching concurrently raced on them (read during DoMove). Now per-instance.
+    int           msCastleMask[64];
+    eSquare       Castle_W_RQ, Castle_W_K, Castle_W_RK;
+    eSquare       Castle_B_RQ, Castle_B_K, Castle_B_RK;
+    U64           CastleMask_W_KS, CastleMask_W_QS, CastleMask_B_KS, CastleMask_B_QS;
+    unsigned char CastleFile_RQ, CastleFile_RK;
+    sPersAliases  pers_aliases; // personality path aliases from basic.ini (per-instance)
+    sPersSets     pers_sets;    // personality-set aliases from basic.ini (per-instance)
+
+    // Per-instance PRNG (phase 4). Replaces the process-global rand()/srand() used
+    // for book move selection, Elo weakening and taunts, so concurrent instances draw
+    // independent sequences and never race on the C library's shared RNG state.
+    // rand()-compatible range [0, RAND_MAX]; xorshift32, kept nonzero.
+    unsigned int rngState;
+    void SeedRng(unsigned int s) { rngState = s ? s : 1u; }
+    int Rng() {
+        unsigned int x = rngState ? rngState : 1u;
+        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+        rngState = x;
+        return (int)(x % ((unsigned)RAND_MAX + 1u));
+    }
     U64 game_key;         // random key initialized on ucinewgame to ensure non-repeating random eval modification for weak personalities
     int avoidMove[MAX_PV + 1]; // list of moves to avoid in multi-pv re-searches
     int gameValue; // for more accurte taunts
@@ -827,7 +887,7 @@ class cGlobals {
 	void SetAvoidMove(int loc, int move);
 };
 
-extern cGlobals& Glob;
+// Glob is a per-instance macro now (end of this header), not a global reference.
 
 #define ZEROARRAY(x) memset(x, 0, sizeof(x))
 
@@ -964,10 +1024,9 @@ class cEngine {
 
   public:
 
-    static int msMoveTime;
-    static int msMoveNodes;
-    static int msSearchDepth;
-    static int msStartTime;
+    // Per-search budget (move time, node/depth limits, start clock) moved to the
+    // per-instance cGlobals in phase 4: it is one search's parameters shared by that
+    // instance's SMP workers, not process-wide state. See Glob.moveTime etc.
 
     static void InitSearch();
     static void ReadyForBestmove();
@@ -983,7 +1042,8 @@ class cEngine {
     std::thread mWorker;
     void StartThinkThread(POS *p) {
         mDpCompleted = 0;
-        mWorker = std::thread([&] { Think(p); });
+        EngineContext* ctx = tls_ctx; // this instance's context (set on the driving thread)
+        mWorker = std::thread([this, p, ctx] { tls_ctx = ctx; Think(p); });
     }
 
     ~cEngine() { WaitThinkThread(); };  // should fix crash on windows on console closing
@@ -1009,9 +1069,9 @@ class cEngine {
 
 #ifdef USE_THREADS
     #include <list>
-    extern std::list<cEngine>& Engines;
+    // Engines is a per-instance macro now (end of this header).
 #else
-    extern cEngine& EngineSingle;
+    // EngineSingle is a per-instance macro now (end of this header).
 #endif
 
 void PrintVersion();
@@ -1031,6 +1091,7 @@ void PrintUciOptions();
 bool ReadLine(char *, int);
 void ReadPersonality(const char *fileName);
 void ReadThreadNumber(const char *fileName);
+bool UciCommand(POS *p, char *command); // dispatch one UCI line; false = end session
 void UciLoop();
 int PolyglotRandom(int n);
 int Percent(int val, int perc);
@@ -1098,6 +1159,10 @@ extern const int ph_value[7];
 // instance state (a std::function/listener) so nothing is process-global.
 class cSink {
 public:
+    // When set (rodent::Engine), each console line is delivered here instead of to
+    // `console`. Unset for the classic exe / adapter, which writes to `console`
+    // (stdout) exactly as before, so its output stays byte-identical. (phase 4)
+    std::function<void(const char *line)> onConsole;
     FILE *console = stdout;
 
     // Emit one already-formatted message.
@@ -1108,7 +1173,7 @@ public:
     void Emit(bool toConsole, const char *logPrefix, const char *text);
 };
 
-extern cSink& Sink;
+// Sink is a per-instance macro now (end of this header), not a global reference.
 
 #define printfUciIn(...)  printfLog(">> ", __VA_ARGS__)
 #define printfUciOut(...) printfLog("<< ", __VA_ARGS__)
@@ -1123,11 +1188,9 @@ void printfCon(const char *fmt, ...); // console-only output; replaces bare prin
 #endif
 
 #include "chessheapclass.h"
-extern ChessHeapClass& Trans;
+// Trans is a per-instance macro now (end of this header), not a global reference.
 
-#ifndef NO_THREADS
-    extern int tDepth[MAX_THREADS];
-#endif
+// tDepth[] is now a per-instance cGlobals member (Glob.tDepth), not a global. (phase 4)
 
 // I don't belive anybody will use UNICODE in pathnames (only filenames), but
 // still being ready for it using (more complex) wstring:
@@ -1143,7 +1206,61 @@ void SetRodentHomeDir();
 void CreateRodentHome(const char *RodentDir);
 void ChangePersonalitySet(int persSetNo);
 
-extern unsigned char CastleFile_RQ;
-extern unsigned char CastleFile_RK;
+// CastleFile_RQ/_RK are per-instance cGlobals members now (Glob.CastleFile_*). (phase 4)
 
 void CheckGUI();
+
+// ---------------------------------------------------------------------------
+// Per-instance engine state (phase 4)
+//
+// EngineContext bundles all the mutable state that used to be process-global:
+// output sink, run state/options (Glob), the personality (Par), the transposition
+// table (Trans), the opening books, and the SMP worker pool. N of these coexist,
+// one per rodent::Engine instance.
+//
+// Every thread that runs engine code sets tls_ctx to its instance's context
+// (the driving thread in rodent::Engine, each SMP worker in StartThinkThread, the
+// timer thread in ParseGo, and the classic exe's main()). The Glob/Par/Trans/Sink/
+// GuideBook/MainBook/Engines/EngineSingle names below are macros that resolve to
+// the calling thread's context, so the ~640 existing use sites are unchanged.
+//
+// book.h is pulled in here (not earlier) because EngineContext holds sBook members
+// by value; its one Glob-using method was moved out-of-line into book.cpp so this
+// header stays free of the macros until they are defined.
+#include "book.h"
+
+struct EngineContext {
+    cSink          mSink;        // the output seam (phase 2)
+    cGlobals       mGlob;        // run state + option flags
+    cParam         mPar;         // the personality, mutated by every setoption
+    ChessHeapClass mTrans;       // transposition table
+    sBook          mGuideBook;   // opening books
+    sBook          mMainBook;
+    // Value-initialize mGlob/mPar (they have no user ctor): the classic exe's global
+    // Context is zero-initialized by static storage before cGlobals::Init runs, and
+    // several search-read fields (e.g. Glob.depthReached) rely on that zero start and
+    // are never explicitly reset. A per-rodent::Engine context is not static storage,
+    // so without this its mGlob/mPar would be garbage -> intermittent early aborts. (phase 4)
+#ifdef USE_THREADS
+    std::list<cEngine> mEngines; // SMP worker pool
+    EngineContext(): mGlob(), mPar(), mEngines(1) {}
+#else
+    cEngine        mEngineSingle;
+    EngineContext(): mGlob(), mPar(), mEngineSingle(0) {}
+#endif
+};
+
+// The calling thread's current context (see tls_ctx forward-declared at the top).
+inline EngineContext& Ctx() { return *tls_ctx; }
+
+#define Glob         (Ctx().mGlob)
+#define Par          (Ctx().mPar)
+#define Trans        (Ctx().mTrans)
+#define Sink         (Ctx().mSink)
+#define GuideBook    (Ctx().mGuideBook)
+#define MainBook     (Ctx().mMainBook)
+#ifdef USE_THREADS
+    #define Engines      (Ctx().mEngines)
+#else
+    #define EngineSingle (Ctx().mEngineSingle)
+#endif

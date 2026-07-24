@@ -60,19 +60,80 @@ const char *ParseToken(const char *string, char *token) {
     return string;
 }
 
-void UciLoop() {
+// Moved from main.cpp in phase 4 (it is library code -- UciCommand's "uci" handler
+// calls it -- not part of the standalone-executable adapter).
+void PrintVersion() {
+    std::string OutStr;
 
-    char command[4096], token[80]; const char *ptr;
-    POS p[1];
+    OutStr = "id name Rodent IV 0.33";
 
-    // setbuf() now lives in main() -- the adapter owns process-level stdio.
-    p->SetPosition(START_POS);
-    Trans.AllocTrans(16);
-    for (;;) {
-        if (!ReadLine(command, sizeof(command)))
-            break;                      // EOF on stdin -> clean quit
-        ptr = ParseToken(command, token);
+#if defined(DEBUG)
 
+	int bits = sizeof(void*) * 8; // CHAR_BIT
+	if (bits == 32)
+        OutStr += " 32-bit";
+	else if (bits == 64)
+        OutStr += " 64-bit";
+
+#if defined(__arm__)
+    OutStr += "/arm";
+#elif defined(__aarch64__)
+    OutStr += "/aarch64";
+#elif defined(__i386__)
+    OutStr += "/x86";
+#elif defined(__x86_64__)
+    OutStr += "/x86_64";
+#endif
+
+#if defined(__clang__)
+    // "__clang_version__" too long
+    OutStr += "/CLANG " + std::to_string(__clang_major__);
+    OutStr += "." + std::to_string(__clang_minor__);
+    OutStr += "." + std::to_string(__clang_patchlevel__);
+#elif defined(__MINGW32__)
+    OutStr += "/MINGW " __VERSION__;
+#elif defined(__GNUC__)
+    OutStr += "/GCC " __VERSION__;
+#elif defined(_MSC_VER)
+    OutStr += "/MSVS";
+    #if   _MSC_VER == 1900
+        OutStr += "2015";
+    #elif _MSC_VER >= 1910
+        OutStr += "2017";
+    #endif
+#endif
+
+#if (defined(_MSC_VER) && defined(USE_MM_POPCNT)) || (defined(__GNUC__) && defined(__POPCNT__))
+        OutStr += "/POPCNT";
+#elif defined(__GNUC__) && defined(__SSSE3__) // we are using custom SSSE3 popcount implementation
+        OutStr += "/SSSE3";
+#endif
+
+#if defined(NO_THREADS)
+    OutStr += "/NOSMP";
+#else
+    OutStr += "/SMP";
+#endif
+
+    OutStr += "/DEBUG";
+#endif
+
+    // Maybe too much info - can be shortened later
+    // But currently it's not bad to have infos
+    printfUciOut("%s\n",OutStr.c_str());
+}
+
+// Handle one already-read UCI command line, dispatching on its first token.
+// Returns false when the session should end: an explicit "quit", or quit/EOF seen
+// mid-search (Glob.goodbye, set in CheckTimeout). All output goes through the
+// current context's sink; nothing here touches the process. This is the seam the
+// embeddable rodent::Engine::ProcessLine drives, one line at a time. (phase 4)
+bool UciCommand(POS *p, char *command) {
+
+    char token[80]; const char *ptr;
+    ptr = ParseToken(command, token);
+
+    {
         if (strcmp(token, "uci") == 0)               {
 
             PrintVersion();
@@ -87,7 +148,7 @@ void UciLoop() {
             Trans.Clear();
             Glob.ClearData();
             p->SetPosition(START_POS);
-            srand(GetMS());
+            Glob.SeedRng(GetMS());
             Glob.game_key = p->Random64() ^ (U64) GetMS(); // so that the weakest personalities do not repeat the same game
         } else if (strcmp(token, "isready") == 0)    {
             printfUciOut("readyok\n");
@@ -127,11 +188,32 @@ void UciLoop() {
             Engines.front().Bench(atoi(token));
 #endif
         } else if (strcmp(token, "quit") == 0)       {
-            break;                      // was exit(0); let main() decide the exit code
+            return false;               // was exit(0); let the caller decide the exit code
         }
+    }
 
-        if (Glob.goodbye)
-            break;                      // quit/EOF received during a search (set in CheckTimeout)
+    if (Glob.goodbye)
+        return false;                   // quit/EOF received during a search (set in CheckTimeout)
+
+    return true;
+}
+
+// Classic blocking stdin loop for the standalone executable: read a line, hand it
+// to UciCommand, stop when it says the session is over. rodent::Engine drives the
+// same UciCommand from ProcessLine instead. (phase 4)
+void UciLoop() {
+
+    char command[4096];
+    POS p[1];
+
+    // setbuf() now lives in main() -- the adapter owns process-level stdio.
+    p->SetPosition(START_POS);
+    Trans.AllocTrans(16);
+    for (;;) {
+        if (!ReadLine(command, sizeof(command)))
+            break;                      // EOF on stdin -> clean quit
+        if (!UciCommand(p, command))
+            break;                      // quit, or quit/EOF seen mid-search
     }
 }
 
@@ -223,30 +305,30 @@ void cEngine::SetMoveTime(int base, int inc, int movestogo) {
     if (base >= 0) {
 
         if (movestogo == 1) base -= Min(1000, base / 10);
-        msMoveTime = (base + inc * (movestogo - 1)) / movestogo;
+        Glob.moveTime = (base + inc * (movestogo - 1)) / movestogo;
 
         // make a percentage correction to playing speed (unless too risky)
 
-        if (2 * msMoveTime > base)
-            msMoveTime = (U64)msMoveTime * Par.timePercentage / 100;
+        if (2 * Glob.moveTime > base)
+            Glob.moveTime = (U64)Glob.moveTime * Par.timePercentage / 100;
 
         // ensure that our limit does not exceed total time available
 
-        if (msMoveTime > base) msMoveTime = base;
+        if (Glob.moveTime > base) Glob.moveTime = base;
 
         // safeguard against a lag
 
-        msMoveTime -= Glob.timeBuffer;
+        Glob.moveTime -= Glob.timeBuffer;
 
         // ensure that we have non-negative time
 
-        if (msMoveTime < 0) msMoveTime = 0;
+        if (Glob.moveTime < 0) Glob.moveTime = 0;
 
         // assign less time per move on extremely short time controls
 
-        msMoveTime = BulletCorrection(msMoveTime);
+        Glob.moveTime = BulletCorrection(Glob.moveTime);
         if (Glob.isNoisy)
-            printfUciOut("info string base %d, Inc %d, ToGo %d, assigned %d milliseconds\n", base, inc, movestogo, msMoveTime);
+            printfUciOut("info string base %d, Inc %d, ToGo %d, assigned %d milliseconds\n", base, inc, movestogo, Glob.moveTime);
     }
 }
 
@@ -276,9 +358,9 @@ void ParseGo(POS *p, const char *ptr) {
 
     // if (Par.use_ponder) movestogo = 38;
 
-    cEngine::msMoveTime    = -1;
-    cEngine::msMoveNodes   =  0;
-    cEngine::msSearchDepth = 64;
+    Glob.moveTime    = -1;
+    Glob.moveNodes   =  0;
+    Glob.searchDepth = 64;
 
     Par.shut_up = false;
 
@@ -292,16 +374,16 @@ void ParseGo(POS *p, const char *ptr) {
             Glob.infinite = true;
         } else if (strcmp(token, "depth") == 0)     {
             ptr = ParseToken(ptr, token);
-            cEngine::msSearchDepth = atoi(token);
+            Glob.searchDepth = atoi(token);
             strict_time = true;
         } else if (strcmp(token, "movetime") == 0)  {
             ptr = ParseToken(ptr, token);
-            cEngine::msMoveTime = atoi(token);
+            Glob.moveTime = atoi(token);
             strict_time = true;
         } else if (strcmp(token, "nodes") == 0)     {
             ptr = ParseToken(ptr, token);
-            cEngine::msMoveNodes = atoi(token);
-            cEngine::msMoveTime = 99999999;
+            Glob.moveNodes = atoi(token);
+            Glob.moveTime = 99999999;
             strict_time = true;
         } else if (strcmp(token, "wtime") == 0)     {
             ptr = ParseToken(ptr, token);
@@ -331,7 +413,7 @@ void ParseGo(POS *p, const char *ptr) {
 
     // set global variables
 
-    cEngine::msStartTime = GetMS();
+    Glob.startTime = GetMS();
     Trans.tt_date = (Trans.tt_date + 1) & 255;
     Glob.nodes = 0;
     Glob.abortSearch = false;
@@ -400,13 +482,15 @@ void ParseGo(POS *p, const char *ptr) {
     Glob.goodbye = false;
 
 	for (int i = 0; i < MAX_THREADS; i++) {
-		tDepth[i] = 0;
+		Glob.tDepth[i] = 0;
 	}
 
     for (auto& engine: Engines) // mDpCompleted cleared in StartThinkThread();
         engine.StartThinkThread(p);
 
-    std::thread timer([] {
+    EngineContext* ctx = tls_ctx; // this instance's context, for the timer thread
+    std::thread timer([ctx] {
+        tls_ctx = ctx;
         while (Glob.abortSearch == false) {
 
             // Check for timeout every 1 millisecond. This allows Rodent
@@ -478,8 +562,8 @@ void cEngine::Bench(int depth) {
 
     Glob.nodes = 0;
     Glob.abortSearch = false;
-    msStartTime = GetMS();
-    msSearchDepth = depth;
+    Glob.startTime = GetMS();
+    Glob.searchDepth = depth;
 
     // search each position to desired depth
 
@@ -493,7 +577,7 @@ void cEngine::Bench(int depth) {
 
     // calculate and print statistics
 
-    int end_time = GetMS() - msStartTime;
+    int end_time = GetMS() - Glob.startTime;
     unsigned int nps = (unsigned int)((Glob.nodes * 1000) / (end_time + 1));
 
     printfCon("%" PRIu64 " nodes searched in %d, speed %u nps (Score: %.3f)\n", (U64)Glob.nodes, end_time, nps, (float)nps / 430914.0);
@@ -506,9 +590,9 @@ void POS::PrintBoard() const {
 
     if (mCFlags)
         printfUciAdd("        %s%c%s    %s%c%s    %s%c%s\n",
-            (mCFlags & B_QS)?" ":"(", File(Fsq(Castle_B_RQ)) + 'a', (mCFlags & B_QS)?" ":")",
-            (mCFlags & (B_KS | B_QS))?" ":"(", File(Fsq(Castle_B_K)) + 'a', (mCFlags & (B_KS | B_QS))?" ":")",
-            (mCFlags & B_KS)?" ":"(", File(Fsq(Castle_B_RK)) + 'a', (mCFlags & B_KS)?" ":")");
+            (mCFlags & B_QS)?" ":"(", File(Fsq(Glob.Castle_B_RQ)) + 'a', (mCFlags & B_QS)?" ":")",
+            (mCFlags & (B_KS | B_QS))?" ":"(", File(Fsq(Glob.Castle_B_K)) + 'a', (mCFlags & (B_KS | B_QS))?" ":")",
+            (mCFlags & B_KS)?" ":"(", File(Fsq(Glob.Castle_B_RK)) + 'a', (mCFlags & B_KS)?" ":")");
 
     printfUciAdd("     --------------------------\n     |   ");
     for (int sq = 0; sq < 64; sq++) {
@@ -521,7 +605,7 @@ void POS::PrintBoard() const {
 
     if (mCFlags)
         printfUciAdd("        %s%c%s    %s%c%s    %s%c%s\n",
-            (mCFlags & W_QS)?" ":"(", File(Fsq(Castle_W_RQ)) + 'a', (mCFlags & W_QS)?" ":")",
-            (mCFlags & (W_KS | W_QS))?" ":"(", File(Fsq(Castle_W_K)) + 'a', (mCFlags & (W_KS | W_QS))?" ":")",
-            (mCFlags & W_KS)?" ":"(", File(Fsq(Castle_W_RK)) + 'a', (mCFlags & W_KS)?" ":")");
+            (mCFlags & W_QS)?" ":"(", File(Fsq(Glob.Castle_W_RQ)) + 'a', (mCFlags & W_QS)?" ":")",
+            (mCFlags & (W_KS | W_QS))?" ":"(", File(Fsq(Glob.Castle_W_K)) + 'a', (mCFlags & (W_KS | W_QS))?" ":")",
+            (mCFlags & W_KS)?" ":"(", File(Fsq(Glob.Castle_W_RK)) + 'a', (mCFlags & W_KS)?" ":")");
 }

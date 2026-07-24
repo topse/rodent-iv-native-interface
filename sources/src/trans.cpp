@@ -26,10 +26,9 @@ If not, see <http://www.gnu.org/licenses/>.
     #include <atomic>
     #include <memory>
 
-    // TODO: see if we get a slowdown by making all these class methods
-
-    std::unique_ptr<std::atomic_flag[]> aflags0;
-    std::unique_ptr<std::atomic_flag[]> aflags1;
+    // aflags0/aflags1 (the TT lock arrays) are now per-instance members of
+    // ChessHeapClass (phase 4) -- they were file-scope globals shared by every
+    // engine. elem_per_aflag stays a shared read-only constant.
     const unsigned int elem_per_aflag = 4;
 
     #define LOCK_ME_PLEASE0   const unsigned int current_aflag = (key & tt_mask) / elem_per_aflag; while (aflags0[current_aflag].test_and_set(std::memory_order_acquire));
@@ -56,7 +55,8 @@ If not, see <http://www.gnu.org/licenses/>.
 
 void ChessHeapClass::AllocTrans(unsigned int mbsize) {
 
-    static unsigned int prev_size;
+    // prev_size is a per-instance member now (was a function-local static, which
+    // made every engine after the first skip its own allocation). See chessheapclass.h.
 
     for (tt_size = 2; tt_size <= mbsize; tt_size *= 2)
         ;

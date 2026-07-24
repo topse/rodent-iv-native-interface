@@ -46,14 +46,9 @@ struct sBook {
   public:
     char bookName[256];
     sBook(): bookFile(NULL), bookMemory(NULL) {}
-    void SetBookName(const char *name) {
-
-        strcpy(bookName, name);
-        OpenPolyglot();
-        if (Glob.isNoisy)
-            printfUciOut("info string reading book file '%s' (%s)\n", bookName,
-                                        Success() ? (bookMemory ? "success/m" : "success/d") : "failure");
-    }
+    // Defined out-of-line in book.cpp: it uses Glob, which is a per-instance
+    // macro (see rodent.h) not visible in this header (phase 4).
+    void SetBookName(const char *name);
     bool Success() const { return bookFile || bookMemory; }
     int GetPolyglotMove(POS *p, bool print_output);
     ~sBook() { ClosePolyglot(); }

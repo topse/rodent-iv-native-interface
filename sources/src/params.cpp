@@ -480,7 +480,7 @@ int cParam::EloToSpeed(int elo_in) {
 
     const int lower_elo = elo_in - 25;
     const int upper_elo = elo_in + 25;
-    int use_rating = rand() % (upper_elo - lower_elo + 1) + lower_elo;
+    int use_rating = Glob.Rng() % (upper_elo - lower_elo + 1) + lower_elo;
     int search_nodes = (int)(pow(1.0069555500567, (((use_rating) / 1200) - 1)
                              + (use_rating - 1200)) * 128);
 

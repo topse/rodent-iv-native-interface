@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -32,18 +33,18 @@ U64 POS::Random64() {
 
 bool POS::Is960() {
 
-    if (Castle_W_RQ != A1 && mCFlags & W_QS)
+    if (Glob.Castle_W_RQ != A1 && mCFlags & W_QS)
         return true;
-    if (Castle_W_K  != E1 && (mCFlags & W_KS || mCFlags & W_QS))
+    if (Glob.Castle_W_K  != E1 && (mCFlags & W_KS || mCFlags & W_QS))
         return true;
-    if (Castle_W_RK != H1 && mCFlags & W_KS)
+    if (Glob.Castle_W_RK != H1 && mCFlags & W_KS)
         return true;
 
-    if (Castle_B_RQ != A8 && mCFlags & B_QS)
+    if (Glob.Castle_B_RQ != A8 && mCFlags & B_QS)
         return true;
-    if (Castle_B_K  != E8 && (mCFlags & B_KS || mCFlags & B_QS))
+    if (Glob.Castle_B_K  != E8 && (mCFlags & B_KS || mCFlags & B_QS))
         return true;
-    if (Castle_B_RK != H8 && mCFlags & B_KS)
+    if (Glob.Castle_B_RK != H8 && mCFlags & B_KS)
         return true;
 
     return false;
@@ -52,33 +53,33 @@ bool POS::Is960() {
 void POS::Init960() { // static init function for chess960
 
     for (int sq = 0; sq < 64; sq++)
-        msCastleMask[sq] = W_KS | W_QS | B_KS | B_QS;
+        Glob.msCastleMask[sq] = W_KS | W_QS | B_KS | B_QS;
 
-    msCastleMask[Castle_W_RQ] &= W_KS |        B_KS | B_QS;
-    msCastleMask[Castle_W_K]  &=               B_KS | B_QS;
-    msCastleMask[Castle_W_RK] &=        W_QS | B_KS | B_QS;
-    msCastleMask[Castle_B_RQ] &= W_KS | W_QS | B_KS       ;
-    msCastleMask[Castle_B_K]  &= W_KS | W_QS              ;
-    msCastleMask[Castle_B_RK] &= W_KS | W_QS        | B_QS;
+    Glob.msCastleMask[Glob.Castle_W_RQ] &= W_KS |        B_KS | B_QS;
+    Glob.msCastleMask[Glob.Castle_W_K]  &=               B_KS | B_QS;
+    Glob.msCastleMask[Glob.Castle_W_RK] &=        W_QS | B_KS | B_QS;
+    Glob.msCastleMask[Glob.Castle_B_RQ] &= W_KS | W_QS | B_KS       ;
+    Glob.msCastleMask[Glob.Castle_B_K]  &= W_KS | W_QS              ;
+    Glob.msCastleMask[Glob.Castle_B_RK] &= W_KS | W_QS        | B_QS;
 
-    CastleMask_W_QS =      CastleMask [File(Castle_W_K)][File(Castle_W_RQ)];
-    CastleMask_W_KS =      CastleMask [File(Castle_W_K)][File(Castle_W_RK)];
-    CastleMask_B_QS = (U64)CastleMask [File(Castle_B_K)][File(Castle_B_RQ)] << 56;
-    CastleMask_B_KS = (U64)CastleMask [File(Castle_B_K)][File(Castle_B_RK)] << 56;
+    Glob.CastleMask_W_QS =      CastleMask [File(Glob.Castle_W_K)][File(Glob.Castle_W_RQ)];
+    Glob.CastleMask_W_KS =      CastleMask [File(Glob.Castle_W_K)][File(Glob.Castle_W_RK)];
+    Glob.CastleMask_B_QS = (U64)CastleMask [File(Glob.Castle_B_K)][File(Glob.Castle_B_RQ)] << 56;
+    Glob.CastleMask_B_KS = (U64)CastleMask [File(Glob.Castle_B_K)][File(Glob.Castle_B_RK)] << 56;
 
-    CastleFile_RQ = File(Castle_W_RQ);
-    CastleFile_RK = File(Castle_W_RK);
+    Glob.CastleFile_RQ = File(Glob.Castle_W_RQ);
+    Glob.CastleFile_RK = File(Glob.Castle_W_RK);
 }
 
 void POS::Init() { // static init function
 
     // Init standard-chess
-    Castle_W_RQ = A1;
-    Castle_W_K  = E1;
-    Castle_W_RK = H1;
-    Castle_B_RQ = A8;
-    Castle_B_K  = E8;
-    Castle_B_RK = H8;
+    Glob.Castle_W_RQ = A1;
+    Glob.Castle_W_K  = E1;
+    Glob.Castle_W_RK = H1;
+    Glob.Castle_B_RQ = A8;
+    Glob.Castle_B_K  = E8;
+    Glob.Castle_B_RK = H8;
     Init960();
 
     for (int i = 0; i < 12; i++)

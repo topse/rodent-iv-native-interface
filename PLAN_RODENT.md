@@ -7,11 +7,17 @@
 > plan in place when reality disagrees with it — a stale plan is worse than no plan. Items marked
 > *verify* are assumptions to check against the sources or a running build before relying on them.
 >
-> Status: **phases 0–3 done** (2026-07-24). CMake build + verification harness green; baselines
-> captured; library-path `exit()` calls removed (clean loop termination); all output routed
-> through one global `cSink`; all mutable engine state consolidated into one `EngineContext` that
-> `main()` owns (former globals are reference aliases into it for now). Next up is phase 4
-> (instances: `EngineContext`/sink become per-`rodent::Engine`, `ProcessLine` API, adapter split).
+> Status: **phases 0–3 done; phase 4 core done** (2026-07-24). CMake build + verification harness
+> green (byte-identical) throughout; library-path `exit()` calls removed; all output routed through
+> a per-instance `cSink`; engine state is per-instance `EngineContext`, reached via a thread-local
+> current-context (macros); `rodent::Engine` + `ProcessLine` exist; `main()` is the stdio adapter;
+> read-only tables init once via `std::call_once`; the RNG (book/weakening/taunts) is per-instance
+> (4.7 done). The **multi-instance suite passes under ASan and TSan** (`test/multi_instance_test.cpp`
+> + `test/run_multi_instance.sh`) — two engines, one with an eval override, produce identical output
+> whether run sequentially or concurrently. **Phase 4 is complete**; the one deliberately-skipped
+> refinement (`main()` literally constructing a `rodent::Engine`) is documented under phase 4 with
+> its rationale (the `threads.ini`/`threadOverride` ordering). Next substantive work is phase 5
+> (packaging/CI/docs).
 >
 > Target platforms: **Windows, Linux, Android** (iOS/macOS not prevented by design but not
 > built — no devices). Scope is **portability-only**: keep every platform compiling, add no
@@ -198,25 +204,115 @@ phase are encouraged — bench identity per commit makes bisecting trivial.
       discovery / console-input detection → move into the **adapter** (phase 4 already scopes this).
     - `LogFileWStr`, `SkipBeginningOfLog` — log configuration → fold into the (then per-instance)
       `cSink`.
-    - `cEngine::` and `POS::` **class-static** members (e.g. `msMoveTime`, `Castle_*`) — already
-      class-scoped; become per-instance members when instances are introduced in phase 4.
+    - `cEngine::` **class-static per-search state** — `msMoveTime`, `msMoveNodes`,
+      `msSearchDepth`, `msStartTime` (`data.cpp:63-66`). *Verified 2026-07-24 to be a real
+      multi-instance correctness hazard, not just a tidiness item:* these hold the live search
+      time/node/depth budget and start clock — set in `ParseGo` (`uci.cpp:279-304`, `:334`) and
+      read by `CheckTimeout` (`search.cpp:1301`). One shared copy across all instances, so two
+      engines searching concurrently would clobber each other's time control (engine A's
+      `msStartTime = GetMS()` overwrites B's). **Must become per-instance state in phase 4** — this
+      is the top phase-4 correctness fix. Contrast: each `cEngine`'s per-worker search tables
+      (`mEvalTT`, `mPawnTT`, `mHistory`, `mEvalStack`, `mKiller`, `mRefutation`, `mPvEng`) are
+      already **non-static instance members** → already correct for N instances.
+    - `POS::` **class-static tables** — split into two groups (corrected 2026-07-24 after TSan):
+      - **Truly write-once, read-only** → stay shared behind `std::call_once`: `msZobPiece`/
+        `msZobCastle`/`msZobEp` (zobrist keys) and `cEngine::msLmrSize`. (`static const` members —
+        `mscRazorMargin` etc. — are plain constants, no action.)
+      - **NOT write-once** → must become per-instance: the castle-configuration set
+        `msCastleMask[64]`, `CastleMask_W_QS/KS`/`CastleMask_B_QS/KS`, `CastleFile_RQ/RK` and
+        `Castle_W_RQ/K/RK`,`Castle_B_RQ/K/RK`. The audit's earlier "written once in `Init960()`"
+        was wrong: `Init960()` is also called from `SetPosition()` (`setboard.cpp:168`), which
+        rewrites them (from the FEN castling field) on **every** `position` command. Two instances
+        setting positions / searching concurrently race on them, and `msCastleMask`'s
+        set-all-then-`&=` transient can be read mid-update → wrong castling rights in the other
+        instance's search. Caught by the multi-instance suite under TSan. (~150 refs; the read-only
+        `POS::CastleMask[8][8]` const lookup stays put.)
   - **Function-local statics:** only `InputAvailable()` (Windows, above). The `MoveToStr(int)`
     "not thread safe" comment is stale — it uses a local buffer, not a static.
-- [ ] **4. Instances.** `EngineContext` + sink become per-`rodent::Engine`; `ProcessLine` API;
-      `main()` becomes the stdio adapter; exe-relative path discovery (`RodentHome`, GUI
-      detection, `IsProcessRunning`) moves into the adapter, the library takes explicit paths.
-      Read-only tables get their `std::call_once` guard. SMP worker threads (`USE_THREADS`)
-      become instance-owned. **Fallback if SMP entanglement explodes the diff:** land phase 4
-      single-threaded-per-instance (document it here), re-enable instance-owned SMP as phase
-      4b — the consumer's presets mostly run `Threads=1` anyway.
+- [x] **4. Instances.** *Core done 2026-07-24.* `EngineContext` + sink are per-`rodent::Engine`;
+      `ProcessLine` API added; `main()` is the stdio adapter; read-only tables get their
+      `std::call_once` guard; SMP worker threads are instance-owned (each instance's `Engines`
+      list, workers propagate `tls_ctx`). Routing done via a thread-local current-context rather
+      than the originally-planned `mCtx->` (see 4.2/4.3 note). SMP did **not** need the
+      single-threaded fallback. Exe-relative path discovery stays in the adapter, but the library
+      still resolves resources through the process-wide Rodent home (host sets it once); explicit
+      per-instance paths are a phase-5/refinement item.
       *Done when: harness identical through the adapter, and the multi-instance suite passes —
       N concurrent instances with different personalities, outputs equal to their sequential
-      runs, TSan and ASan clean.*
+      runs, TSan and ASan clean.* — **met**: harness 7/7 byte-identical; `test/run_multi_instance.sh`
+      green in plain -O2 (repeated), ASan and TSan (0 races). "Different personalities" is exercised
+      via a direct eval override (`PawnValueMg`), because a mid-session `PersonalityFile` load is an
+      upstream no-op for eval (see the harness notes); the override is the meaningful differentiator.
+
+  **Phase-4 progress (in flight, 2026-07-24):**
+  - Done and harness-green (classic exe byte-identical throughout):
+    - 4.1 `cEngine::msMoveTime/msMoveNodes/msSearchDepth/msStartTime` → per-instance `cGlobals`
+      (`Glob.moveTime`/`moveNodes`/`searchDepth`/`startTime`).
+    - 4.2/4.3 **Routing mechanism = thread-local current-context** (decided with maintainer; the
+      plan's `mCtx->` was infeasible because eval helpers are `static` and `POS` methods read
+      `Par`). `EngineContext` moved into `rodent.h` with renamed `m*` members; `Glob`/`Par`/`Trans`/
+      `Sink`/`GuideBook`/`MainBook`/`Engines`/`EngineSingle` are macros over a
+      `thread_local EngineContext* tls_ctx`, set at each thread entry (adapter `main`, worker
+      `StartThinkThread`, timer thread, and `rodent::Engine`). ~640 call sites unchanged. The one
+      header inline that used `Glob` (`sBook::SetBookName`) moved to `book.cpp`.
+    - 4.4 **`rodent::Engine` + `bool ProcessLine(const std::string&)`** (`engine.h`/`engine.cpp`),
+      output via a `std::function<void(const char*)>` sink wired into `cSink::onConsole` (public
+      type is `OutputSink`, since `Sink` is now a macro; sink is `const char*` not `string_view`
+      because the fork is C++14). `UciLoop`'s per-line dispatch extracted to `UciCommand(POS*,char*)`.
+    - 4.5 `main.cpp` is now purely the adapter; its library functions (`PrintVersion`,
+      `cGlobals::Init/CanReadBook`) and `BB`/`Mask`/`Dist` moved to library TUs so a binary without
+      `main.cpp` links. (Not yet main-*over*-`rodent::Engine`; the classic exe still runs its own
+      inline init + `UciLoop` — a later purity refinement.)
+    - 4.6 Read-only shared tables (`BB`/`Mask`/`Dist`/`POS::Init`/`cEngine::InitSearch`) init once
+      via `std::call_once` in `rodent::Engine`.
+    - **Multi-instance suite** (`test/multi_instance_test.cpp`): two engines, one with a
+      `PawnValueMg` eval override on an asymmetric FEN, run sequentially and concurrently; asserts
+      each instance's concurrent output == its sequential output and A≠B. It **found and I fixed**
+      two hidden shared-state bugs: `tDepth[]` (Lazy-SMP depth array) and the TT's
+      `AllocTrans` `static prev_size` + file-global `aflags0/1` lock arrays (only the first-ever
+      engine was allocating a TT) — all now per-instance. Passes reliably at `-O2`.
+  - **Hidden shared state the suite forced out, now all fixed and per-instance:**
+    - `tDepth[]` (Lazy-SMP depth array) and the TT's `AllocTrans` `static prev_size` + file-global
+      `aflags0/1` lock arrays — only the first-ever engine allocated a TT.
+    - The **castle-configuration set** (`msCastleMask`, `CastleMask_W/B_*`, `CastleFile_*`,
+      `Castle_W/B_*`, ~150 refs) — rewritten by `Init960()` on every `SetPosition`; moved to
+      `cGlobals`. TSan-confirmed race.
+    - `pers_aliases` / `pers_sets` (personality/personality-set aliases from `basic.ini`) — moved to
+      `cGlobals` as `sPersAliases`/`sPersSets`. TSan-confirmed race.
+    - **`cGlobals`/`cParam` uninitialized in a per-instance context.** The classic exe's *global*
+      `Context` is zero-initialized by static storage, and search-read fields never reset (e.g.
+      `Glob.depthReached`) rely on that; a per-`rodent::Engine` context is not static → garbage →
+      intermittent early aborts. Fixed by value-initializing `mGlob`/`mPar` in `EngineContext`.
+    - **`CheckTimeout` polled `stdin` during search** (for `stop`/`quit`) — correct for the adapter,
+      but for an embedded engine the host's stdin spuriously aborted the search (and instances would
+      steal each other's input). Gated behind a new `Glob.pollStdin`, set only by `main()`.
+  - **Not a bug, noted so it isn't rediscovered:** a deep search produces large output; the *test's*
+    `std::regex` normaliser overflowed the stack on it (crash bare -O2, fine under ASan). The test
+    now uses a hand-written line normaliser. The engine itself searches to depth ~20 / millions of
+    nodes fine, single or concurrent.
+  - **4.7 per-instance RNG — done 2026-07-24.** The process-global `rand()`/`srand()` (book move
+    selection, Elo weakening, all the taunts) now go through a per-instance xorshift PRNG on
+    `cGlobals` (`Glob.Rng()`/`Glob.SeedRng()`, rand()-compatible `[0,RAND_MAX]`). Each
+    `rodent::Engine` seeds it with a salted `GetMS()` so concurrent instances draw independent
+    sequences even when constructed in the same millisecond; the adapter seeds it in `main()` as
+    before. (`init.cpp`'s `mt19937_64` is left alone — it is the deterministic, global-once zobrist
+    generator, read-only after `POS::Init`.) Harness byte-identical (these paths aren't exercised:
+    book off, full strength, no taunts), NO_THREADS compiles, multi-instance suite still green.
+  - **Intentionally NOT done — `main()` constructing a `rodent::Engine`.** The classic exe is
+    already a thin adapter in substance (it owns path discovery, GUI detection, stdin polling,
+    `setbuf`, exit code and `threads.ini`, and drives the *same* per-instance `EngineContext` +
+    `UciCommand` the library uses). Making it literally instantiate a `rodent::Engine` is blocked by
+    `threads.ini`: the adapter must set `Glob.threadOverride` *before* `cGlobals::Init` runs (that is
+    what forces the SMP thread count and hides the `Threads` option from the GUI), but the `Engine`
+    ctor calls `Init` internally — so it would either drop that feature or need the minimal API
+    grown with a thread-config parameter. Not worth the API/behaviour risk; left as a future
+    refinement if the API grows for other reasons.
+
 - [ ] **5. Packaging, CI, docs.** Library target (static lib + public header) next to the exe
       target; a minimal example embedder (30 lines: two engines, two personalities, one position
       each, printed via sinks); GitHub Actions running build + full harness + sanitized
       multi-instance suite on Linux; README documenting the API, the divergence from upstream,
-      and the GPL provenance notes above.
+      and the GPL provenance notes above. Create a initial CLAUDE.md. it shall contain idea of the fork, desisions and requirements. It shall not contain historic informaion. It shall also not contain implementation details, they belong as comments in code. It may contain an architectural overview. Make a review of our changes.
       *Done when: CI is green from a clean clone and the example embedder runs as documented.*
 
 Out of scope for this fork (they belong to the consumer app, later, and only once this plan is
@@ -230,7 +326,15 @@ Windows/Linux/Android per upstream's README) — just add nothing platform-speci
   fallback exists precisely for this; do not let it stall the whole plan.
 - **Hidden shared state** that bench identity cannot see in single-instance runs — the
   concurrent-vs-sequential equality check in the multi-instance suite is the detector; TSan is
-  the backstop.
+  the backstop. *Two confirmed instances (2026-07-24), both scoped into phase 4:* (a) the
+  `cEngine::msMoveTime/msMoveNodes/msSearchDepth/msStartTime` per-search timing statics (see the
+  phase-4 audit list — the top correctness fix); (b) the **process-global C RNG** — `rand()`/
+  `srand()` back book move selection (`book.cpp:294`/`:423`), Elo weakening (`params.cpp:483`) and
+  taunts (`taunt.cpp`, which even re-seeds via `srand(time(NULL))`). glibc's `rand()` is
+  thread-safe (internally locked) so this is not a crash, but concurrent instances **share one RNG
+  sequence** — not independent, and a data-race-y coupling. Give each instance its own RNG in
+  phase 4; low urgency for the consumer (presets run `Threads=1` and book is usually off), so
+  acceptable to defer to 4b if it entangles.
 - **Bench nondeterminism** — checked first thing in phase 0; the fixed-node fallback keeps the
   harness meaningful.
 - **Windows-specific code paths** (`LogFileWStr` wide strings, `WINDOWS_BUILD` blocks) — keep

@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -26,21 +27,8 @@ If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include "stringfunctions.h"
 
-#define PERSALIAS_ALEN       32     // max length for a personality alias
-#define PERSALIAS_PLEN       256    // max length for an alias path
-#define PERSALIAS_MAXALIASES 100    // max number of aliases
-struct {
-    char alias[PERSALIAS_MAXALIASES][PERSALIAS_ALEN];
-    char path[PERSALIAS_MAXALIASES][PERSALIAS_PLEN];
-    int count;
-} pers_aliases;
-
-#define PERSSETALIAS_LEN     32     // max length for a personality-set alias
-struct {
-    char alias[10][PERSSETALIAS_LEN]; // use one-digit-number for sets, so max-value fixed
-    int count = 0;
-    int used = 0;
-} pers_sets;
+// The pers_aliases / pers_sets tables and their PERSALIAS_*/PERSSETALIAS_* sizes
+// moved to rodent.h as per-instance cGlobals members (Glob.*), phase 4.
 
 void PrintSingleOption(int ind) {
     printfUciOut("option name %s type spin default %d min %d max %d\n",
@@ -111,20 +99,20 @@ void PrintUciOptions() {
 #endif
 
     if (Glob.usePersonalityFiles) {
-        if (pers_aliases.count == 0 || Glob.showPersonalityFile)
+        if (Glob.pers_aliases.count == 0 || Glob.showPersonalityFile)
             printfUciOut("option name PersonalityFile type string default default.txt\n");
         if (Glob.useUciPersonalitySet) {
-            if (pers_sets.count != 0 && pers_sets.used < pers_sets.count) {
-                printfUciOut("option name PersonalitySet type combo default %s", pers_sets.alias[pers_sets.used]);
-                for (int i = 0; i < pers_sets.count; i++)
-                    printfUciAdd(" var %s", pers_sets.alias[i]);
+            if (Glob.pers_sets.count != 0 && Glob.pers_sets.used < Glob.pers_sets.count) {
+                printfUciOut("option name PersonalitySet type combo default %s", Glob.pers_sets.alias[Glob.pers_sets.used]);
+                for (int i = 0; i < Glob.pers_sets.count; i++)
+                    printfUciAdd(" var %s", Glob.pers_sets.alias[i]);
                 printfUciAdd("\n");
             }
         }
-        if (pers_aliases.count != 0) {
+        if (Glob.pers_aliases.count != 0) {
             std::string varStr = "";
-            for (int i = 0; i < pers_aliases.count; i++)
-                varStr += " var " + (std::string)pers_aliases.alias[i];
+            for (int i = 0; i < Glob.pers_aliases.count; i++)
+                varStr += " var " + (std::string)Glob.pers_aliases.alias[i];
             // `---` in case we want PersonalityFile
             printfUciOut("option name Personality type combo default ---%s\n", varStr.c_str());
             #ifdef ANDROID
@@ -477,25 +465,25 @@ void ParseSetoption(const char *ptr) {
     } else if (strcmp(name, "personalityfile") == 0)                         {
         ReadPersonality(value);
     } else if (strcmp(name, "personalityset") == 0)                          {
-        for (int i = 0; i < pers_sets.count; i++)
-            if (strcmp(pers_sets.alias[i], value) == 0) {
+        for (int i = 0; i < Glob.pers_sets.count; i++)
+            if (strcmp(Glob.pers_sets.alias[i], value) == 0) {
                 ChangePersonalitySet(i);
                 break;
             }
     } else if (strcmp(name, "personality") == 0 )                            {
         Glob.personalityW = "";
-        for (int i = 0; i < pers_aliases.count; i++)
-            if (strcmp(pers_aliases.alias[i], value) == 0) {
-                Glob.personalityW = pers_aliases.path[i];
+        for (int i = 0; i < Glob.pers_aliases.count; i++)
+            if (strcmp(Glob.pers_aliases.alias[i], value) == 0) {
+                Glob.personalityW = Glob.pers_aliases.path[i];
                 if (Glob.personalityB == "")
                     ReadPersonality(Glob.personalityW.c_str());
                 break;
             }
     } else if (strcmp(name, "personalityb") == 0 )                           {
         Glob.personalityB = "";
-        for (int i = 0; i < pers_aliases.count; i++)
-            if (strcmp(pers_aliases.alias[i], value) == 0) {
-                Glob.personalityB = pers_aliases.path[i];
+        for (int i = 0; i < Glob.pers_aliases.count; i++)
+            if (strcmp(Glob.pers_aliases.alias[i], value) == 0) {
+                Glob.personalityB = Glob.pers_aliases.path[i];
                 break;
             }
         if (Glob.personalityB == "")
@@ -631,34 +619,34 @@ void ReadPersonality(const char *fileName) {
         if (pos && *skipWS != ';' && *skipWS != '#' && *skipWS != '\'' && *skipWS != '/') {
 
             if (strstr(line, "USE_PERSONALITY_SET_NO") == skipWS) {
-                pers_sets.used = *(pos+1) - '0';
-                if (pers_sets.used < 0 || pers_sets.used > 9)
-                    pers_sets.used = 0;
+                Glob.pers_sets.used = *(pos+1) - '0';
+                if (Glob.pers_sets.used < 0 || Glob.pers_sets.used > 9)
+                    Glob.pers_sets.used = 0;
 
             } else if (strstr(line, "PERSONALITY_SET") == skipWS) {
                 readPersonalitySet++;
                 if (readPersonalitySet < 10) {
-                    strncpy(pers_sets.alias[readPersonalitySet], pos+1, PERSSETALIAS_LEN-1); // -1 coz `strncpy` has a very unexpected glitch
-                    pers_sets.count = readPersonalitySet+1;
+                    strncpy(Glob.pers_sets.alias[readPersonalitySet], pos+1, PERSSETALIAS_LEN-1); // -1 coz `strncpy` has a very unexpected glitch
+                    Glob.pers_sets.count = readPersonalitySet+1;
                 }
 
-            } else if (pers_sets.used == readPersonalitySet) {
+            } else if (Glob.pers_sets.used == readPersonalitySet) {
                 if (!cnt) {
                     // add a fake alias to allow to use PersonalityFile, ReadPersonality will
                     // fail on it keeping PersonalityFile values
-                    strcpy(pers_aliases.alias[cnt], "---");
-                    strcpy(pers_aliases.path[cnt], "///");
+                    strcpy(Glob.pers_aliases.alias[cnt], "---");
+                    strcpy(Glob.pers_aliases.path[cnt], "///");
                     cnt++;
                 }
 
                 *pos = '\0';
-                strncpy(pers_aliases.alias[cnt], line, PERSALIAS_ALEN-1); // -1 coz `strncpy` has a very unexpected glitch
-                strncpy(pers_aliases.path[cnt], pos+1, PERSALIAS_PLEN-1); // see the C11 language standard, note 308
+                strncpy(Glob.pers_aliases.alias[cnt], line, PERSALIAS_ALEN-1); // -1 coz `strncpy` has a very unexpected glitch
+                strncpy(Glob.pers_aliases.path[cnt], pos+1, PERSALIAS_PLEN-1); // see the C11 language standard, note 308
 
                 // test if filename exists:
                 FILE *tempFile = NULL;
-                tempFile = fopen(pers_aliases.path[cnt], "r");
-                printf_debug("personality '%s' exists? (%s)\n", pers_aliases.path[cnt], tempFile == NULL ? "failure" : "success");
+                tempFile = fopen(Glob.pers_aliases.path[cnt], "r");
+                printf_debug("personality '%s' exists? (%s)\n", Glob.pers_aliases.path[cnt], tempFile == NULL ? "failure" : "success");
 
                 if (tempFile) {
                     // only allow existing personalities
@@ -677,7 +665,7 @@ void ReadPersonality(const char *fileName) {
             ParseSetoption(ptr);
     }
 
-    if (cnt != 0) pers_aliases.count = cnt;
+    if (cnt != 0) Glob.pers_aliases.count = cnt;
     fclose(personalityFile);
     Par.SpeedToBookDepth(Par.npsLimit);
     Glob.isReadingPersonality = oldIsReadingPersonality;

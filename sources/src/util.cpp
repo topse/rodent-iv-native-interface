@@ -174,9 +174,9 @@ void MoveToStr(int move, char *move_str) {
 
         if (Par.chess960 || Glob.CastleNotation == TakeRook) {
             if (move_str[2] == 'g')
-                move_str[2] = CastleFile_RK + 'a'; // or use File(Castle_W_RK), if ready
+                move_str[2] = Glob.CastleFile_RK + 'a'; // or use File(Glob.Castle_W_RK), if ready
             else
-                move_str[2] = CastleFile_RQ + 'a'; // or use File(Castle_W_RQ), if ready
+                move_str[2] = Glob.CastleFile_RQ + 'a'; // or use File(Glob.Castle_W_RQ), if ready
         } else if (Glob.CastleNotation == OOO) {
             if ( move_str[2] == 'g')
                 sprintf(move_str, "O-O");
@@ -197,9 +197,9 @@ int POS::StrToMove(const char *move_str) const {
     if (strstr(move_str,"O-O") || strstr(move_str,"o-o") || strstr(move_str,"0-0")) {
         type = CASTLE;
         if (mSide == WC)
-            from = Castle_W_K;
+            from = Glob.Castle_W_K;
         else
-            from = Castle_B_K;
+            from = Glob.Castle_B_K;
 
         if (strchr(move_str+2, '-')) {
             if (mSide == WC)
@@ -412,8 +412,10 @@ std::string GetFullPath(const char *exe_file) {
 // to stdout directly.
 void cSink::Emit(bool toConsole, const char *logPrefix, const char *text)
 {
-    if (toConsole)
-        fputs(text, console);
+    if (toConsole) {
+        if (onConsole) onConsole(text);   // rodent::Engine: deliver to the instance's sink
+        else fputs(text, console);        // classic exe / adapter: stdout as before
+    }
 
     if (logPrefix && LogFileWStr != L"" && !SkipBeginningOfLog) {
 

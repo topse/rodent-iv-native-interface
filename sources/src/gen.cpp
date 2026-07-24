@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -188,19 +189,19 @@ int *POS::GenerateQuiet(int *list) const {
 
     sd = mSide;
     if (sd == WC) {
-        if ((mCFlags & W_KS) && !(Filled() & CastleMask_W_KS)) {
-            attackedB = Attacked(Castle_W_K, BC);
-            for (pos = Castle_W_K + 1 ; pos < G1 && !attackedB ; pos++)
+        if ((mCFlags & W_KS) && !(Filled() & Glob.CastleMask_W_KS)) {
+            attackedB = Attacked(Glob.Castle_W_K, BC);
+            for (pos = Glob.Castle_W_K + 1 ; pos < G1 && !attackedB ; pos++)
                 attackedB |= Attacked(pos, BC);
             if (!attackedB)
-                *list++ = (CASTLE << 12) | (G1 << 6) | Castle_W_K;
+                *list++ = (CASTLE << 12) | (G1 << 6) | Glob.Castle_W_K;
 		}
-        if ((mCFlags & W_QS) && !(Filled() & CastleMask_W_QS)) {
-            attackedB = Attacked(Castle_W_K, BC);
-            for (pos = Castle_W_K - 1 ; pos > C1 && !attackedB ; pos--)
+        if ((mCFlags & W_QS) && !(Filled() & Glob.CastleMask_W_QS)) {
+            attackedB = Attacked(Glob.Castle_W_K, BC);
+            for (pos = Glob.Castle_W_K - 1 ; pos > C1 && !attackedB ; pos--)
                 attackedB |= Attacked(pos, BC);
             if (!attackedB)
-                *list++ = (CASTLE << 12) | (C1 << 6) | Castle_W_K;
+                *list++ = (CASTLE << 12) | (C1 << 6) | Glob.Castle_W_K;
         }
         bb_moves = ((((Pawns(WC) & RANK_2_BB) << 8) & Empty()) << 8) & Empty();
         while (bb_moves) {
@@ -214,19 +215,19 @@ int *POS::GenerateQuiet(int *list) const {
             *list++ = (to << 6) | (to - 8);
         }
     } else {
-        if ((mCFlags & B_KS) && !(Filled() & CastleMask_B_KS)) {
-            attackedB = Attacked(Castle_B_K, WC);
-            for (pos = Castle_B_K + 1 ; pos < G8 && !attackedB ; pos++)
+        if ((mCFlags & B_KS) && !(Filled() & Glob.CastleMask_B_KS)) {
+            attackedB = Attacked(Glob.Castle_B_K, WC);
+            for (pos = Glob.Castle_B_K + 1 ; pos < G8 && !attackedB ; pos++)
                 attackedB |= Attacked(pos, WC);
             if (!attackedB)
-                *list++ = (CASTLE << 12) | (G8 << 6) | Castle_B_K;
+                *list++ = (CASTLE << 12) | (G8 << 6) | Glob.Castle_B_K;
         }
-        if ((mCFlags & B_QS) && !(Filled() & CastleMask_B_QS)) {
-            attackedB = Attacked(Castle_B_K, WC);
-            for (pos = Castle_B_K - 1 ; pos > C8 && !attackedB ; pos--)
+        if ((mCFlags & B_QS) && !(Filled() & Glob.CastleMask_B_QS)) {
+            attackedB = Attacked(Glob.Castle_B_K, WC);
+            for (pos = Glob.Castle_B_K - 1 ; pos > C8 && !attackedB ; pos--)
                 attackedB |= Attacked(pos, WC);
             if (!attackedB)
-                *list++ = (CASTLE << 12) | (C8 << 6) | Castle_B_K;
+                *list++ = (CASTLE << 12) | (C8 << 6) | Glob.Castle_B_K;
         }
 
         bb_moves = ((((Pawns(BC) & RANK_7_BB) >> 8) & Empty()) >> 8) & Empty();

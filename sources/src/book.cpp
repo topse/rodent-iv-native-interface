@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -20,7 +21,19 @@ If not, see <http://www.gnu.org/licenses/>.
 #include "book.h"
 #include <cstdio>
 #include <cstdlib>
+#include <cstring> // for strcpy()
 #include <math.h> // for floor()
+
+// Moved out of book.h in phase 4: uses the per-instance Glob macro (rodent.h),
+// which is not visible inside book.h.
+void sBook::SetBookName(const char *name) {
+
+    strcpy(bookName, name);
+    OpenPolyglot();
+    if (Glob.isNoisy)
+        printfUciOut("info string reading book file '%s' (%s)\n", bookName,
+                                    Success() ? (bookMemory ? "success/m" : "success/d") : "failure");
+}
 
 // Random numbers from PolyGlot, used to compute book hash keys
 
@@ -291,7 +304,7 @@ const U64 PG[781] = {
 int PolyglotRandom(int n) {
 
   double r;
-  r = double(rand()) / (double(RAND_MAX) + 1.0);
+  r = double(Glob.Rng()) / (double(RAND_MAX) + 1.0);
   return int(floor(r*double(n)));
 }
 
@@ -420,7 +433,7 @@ int sBook::GetPolyglotMove(POS *p, bool print_output) {
     polyglot_move entry[1];
     U64 key = GetPolyglotKey(p);
 
-	if (bookFile != NULL) srand(GetMS());
+	if (bookFile != NULL) Glob.SeedRng(GetMS());
 
     if (Glob.isNoisy)
         printfUciOut("info string probing '%s'...\n", bookName);

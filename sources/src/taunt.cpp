@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -350,73 +351,73 @@ void PrintTaunt(int eventType) {
 
 
 void PrintGenericTaunt() {
-    srand(time(NULL));
-    std::string word = generalTaunts[rand() % GENERAL_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = generalTaunts[Glob.Rng() % GENERAL_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintCaptureTaunt() {
-    srand(time(NULL));
-    std::string word = captureTaunts[rand() % CAPTURE_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = captureTaunts[Glob.Rng() % CAPTURE_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintWinningTaunt() {
-    srand(time(NULL));
-    std::string word = winningTaunts[rand() % WINNING_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = winningTaunts[Glob.Rng() % WINNING_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintAdvantageTaunt() {
-    srand(time(NULL));
-    std::string word = advantageTaunts[rand() % ADVANTAGE_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = advantageTaunts[Glob.Rng() % ADVANTAGE_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintBalanceTaunt() {
-    srand(time(NULL));
-    std::string word = balanceTaunts[rand() % BALANCE_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = balanceTaunts[Glob.Rng() % BALANCE_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintDisdvantageTaunt() {
-    srand(time(NULL));
-    std::string word = disadvantageTaunts[rand() % DISADVANTAGE_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = disadvantageTaunts[Glob.Rng() % DISADVANTAGE_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintLosingTaunt() {
-    srand(time(NULL));
-    std::string word = losingTaunts[rand() % LOSING_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = losingTaunts[Glob.Rng() % LOSING_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintCrushingTaunt() {
-    srand(time(NULL));
-    std::string word = crushingTaunts[rand() % CRUSHING_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = crushingTaunts[Glob.Rng() % CRUSHING_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintUserBlunderTaunt() {
-    srand(time(NULL));
-    std::string word = userBlunderTaunts[rand() % USER_BLUNDER_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = userBlunderTaunts[Glob.Rng() % USER_BLUNDER_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintEngineBlunderTaunt() {
-    srand(time(NULL));
-    std::string word = engineBlunderTaunts[rand() % ENGINE_BLUNDER_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = engineBlunderTaunts[Glob.Rng() % ENGINE_BLUNDER_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintEngineEscapeTaunt() {
-    srand(time(NULL));
-    std::string word = escapeTaunts[rand() % ESCAPE_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = escapeTaunts[Glob.Rng() % ESCAPE_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }
 
 void PrintGainingTaunt() {
-    srand(time(NULL));
-    std::string word = gainingTaunts[rand() % GAINING_TAUNTS_NO];
+    Glob.SeedRng(time(NULL));
+    std::string word = gainingTaunts[Glob.Rng() % GAINING_TAUNTS_NO];
     printfUciOut("info string %s\n", word.c_str());
 }

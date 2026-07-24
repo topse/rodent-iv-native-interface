@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -36,40 +37,40 @@ bool POS::Legal(int move) const {
             break;
         case CASTLE:
             if (sd == WC) {
-                if (fsq != Castle_W_K)
+                if (fsq != Glob.Castle_W_K)
                     return false;
                 if (tsq == G1) {
-                    if ((mCFlags & W_KS) && !(Filled() & CastleMask_W_KS))
-                        if (!Attacked(Castle_W_K, BC)) {
-                            for (pos = Castle_W_K + 1 ; pos < G1 ; pos++)
+                    if ((mCFlags & W_KS) && !(Filled() & Glob.CastleMask_W_KS))
+                        if (!Attacked(Glob.Castle_W_K, BC)) {
+                            for (pos = Glob.Castle_W_K + 1 ; pos < G1 ; pos++)
                                 if (Attacked(pos, BC))
                                     return false;
                             return true;
                         }
                 } else {
-                    if ((mCFlags & W_QS) && !(Filled() & CastleMask_W_QS))
-                        if (!Attacked(Castle_W_K, BC)) {
-                            for (pos = Castle_W_K - 1 ; pos > C1 ; pos--)
+                    if ((mCFlags & W_QS) && !(Filled() & Glob.CastleMask_W_QS))
+                        if (!Attacked(Glob.Castle_W_K, BC)) {
+                            for (pos = Glob.Castle_W_K - 1 ; pos > C1 ; pos--)
                                 if (Attacked(pos, BC))
                                     return false;
                             return true;
                         }
                 }
             } else {
-                if (fsq != Castle_B_K)
+                if (fsq != Glob.Castle_B_K)
                     return false;
                 if (tsq == G8) {
-                    if ((mCFlags & B_KS) && !(Filled() & CastleMask_B_KS))
-                        if (!Attacked(Castle_B_K, WC)) {
-                            for (pos = Castle_B_K + 1 ; pos < G8 ; pos++)
+                    if ((mCFlags & B_KS) && !(Filled() & Glob.CastleMask_B_KS))
+                        if (!Attacked(Glob.Castle_B_K, WC)) {
+                            for (pos = Glob.Castle_B_K + 1 ; pos < G8 ; pos++)
                                 if (Attacked(pos, WC))
                                     return false;
                             return true;
                         }
                 } else {
-                    if ((mCFlags & B_QS) && !(Filled() & CastleMask_B_QS))
-                        if (!Attacked(Castle_B_K, WC)) {
-                            for (pos = Castle_B_K - 1 ; pos > C8 ; pos--)
+                    if ((mCFlags & B_QS) && !(Filled() & Glob.CastleMask_B_QS))
+                        if (!Attacked(Glob.Castle_B_K, WC)) {
+                            for (pos = Glob.Castle_B_K - 1 ; pos > C8 ; pos--)
                                 if (Attacked(pos, WC))
                                     return false;
                             return true;

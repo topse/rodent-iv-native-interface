@@ -239,7 +239,7 @@ void cEngine::MultiPv(POS * p, int * pv) {
         lineLastDepth[i].pv[0] = 0;
     }
 
-    for (mRootDepth = 1; mRootDepth <= msSearchDepth; mRootDepth++) {
+    for (mRootDepth = 1; mRootDepth <= Glob.searchDepth; mRootDepth++) {
         Glob.ClearAvoidList();
         bestScore = -INF;
         bestPv = 0;
@@ -312,19 +312,19 @@ void cEngine::Iterate(POS *p, int *pv) {
 
     int offset = mcThreadId & 0x01;
 
-    for (mRootDepth = 1 + offset; mRootDepth <= msSearchDepth; mRootDepth++) {
+    for (mRootDepth = 1 + offset; mRootDepth <= Glob.searchDepth; mRootDepth++) {
 
         depthCounter = 0;
 #ifndef NO_THREADS
-        tDepth[mcThreadId] = mRootDepth;
+        Glob.tDepth[mcThreadId] = mRootDepth;
         for (int j = 0; j < Glob.numberOfThreads; j++) {
-            if (tDepth[j] >= mRootDepth) depthCounter++;
+            if (Glob.tDepth[j] >= mRootDepth) depthCounter++;
         }
 #endif
         // skip depth if it already has good coverage in multi-threaded mode
 
         if (mRootDepth > 5
-        && mRootDepth < msSearchDepth
+        && mRootDepth < Glob.searchDepth
         && Glob.numberOfThreads > 1
         && depthCounter > Glob.numberOfThreads / 2) continue;
 
@@ -1251,7 +1251,7 @@ void cEngine::DisplayPvDepth(int depth, int multipv, int score, int *pv) {
 
     const char *type; 
     char pvString[512];
-    int elapsed = GetMS() - msStartTime;
+    int elapsed = GetMS() - Glob.startTime;
     U64 nps = GetNps(elapsed);
 
     type = "mate";
@@ -1279,7 +1279,9 @@ void CheckTimeout() {
 
     char command[80];
 
-    if (InputAvailable()) {
+    // Only the standalone adapter polls stdin during a search; an embedded
+    // rodent::Engine has no async stdin and must not read (or steal) the host's. (phase 4)
+    if (Glob.pollStdin && InputAvailable()) {
         if (!ReadLine(command, sizeof(command))) {
             // stdin closed mid-search: treat as quit. Abort and defer termination
             // until the search unwinds and threads join (never exit() in here).
@@ -1298,7 +1300,7 @@ void CheckTimeout() {
             Glob.pondering = false;
     }
 
-    if (!Glob.pondering && !Glob.infinite && cEngine::msMoveTime >= 0 && GetMS() - cEngine::msStartTime >= cEngine::msMoveTime)
+    if (!Glob.pondering && !Glob.infinite && Glob.moveTime >= 0 && GetMS() - Glob.startTime >= Glob.moveTime)
         Glob.abortSearch = true;
 }
 
@@ -1306,21 +1308,21 @@ void cEngine::Slowdown() {
 
     // Handling search limited by the number of nodes
 
-    if (msMoveNodes > 0) {
-        if (Glob.nodes >= (unsigned)msMoveNodes)
+    if (Glob.moveNodes > 0) {
+        if (Glob.nodes >= (unsigned)Glob.moveNodes)
             Glob.abortSearch = true;
     }
 
     // Handling slowdown for weak levels
 
     if (Par.npsLimit && mRootDepth > 1) {
-        int time = GetMS() - msStartTime + 1;
+        int time = GetMS() - Glob.startTime + 1;
         int nps = (int)GetNps(time);
         while (nps > Par.npsLimit) {
             WasteTime(10);
-            time = GetMS() - msStartTime + 1;
+            time = GetMS() - Glob.startTime + 1;
             nps = (int)GetNps(time);
-            if ((!Glob.pondering && !Glob.infinite && msMoveTime >= 0 && GetMS() - msStartTime >= msMoveTime)) {
+            if ((!Glob.pondering && !Glob.infinite && Glob.moveTime >= 0 && GetMS() - Glob.startTime >= Glob.moveTime)) {
                 Glob.abortSearch = true;
                 return;
             }
