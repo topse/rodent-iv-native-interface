@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -406,31 +407,70 @@ std::string GetFullPath(const char *exe_file) {
 }
 #endif
 
-void printfLog(const char *preStr, const char *fmt, ...)
+// The single output chokepoint. Console-writing and log-file behaviour that used
+// to live inline in printfLog now live here, so nothing else in the library talks
+// to stdout directly.
+void cSink::Emit(bool toConsole, const char *logPrefix, const char *text)
 {
-    va_list ap;
+    if (toConsole)
+        fputs(text, console);
 
-    va_start(ap, fmt);
+    if (logPrefix && LogFileWStr != L"" && !SkipBeginningOfLog) {
 
-    if (strcmp(preStr, ">> ")) // uci-in needn't echo
-        vfprintf(stdout, fmt, ap);
-
-    if (LogFileWStr != L"" && !SkipBeginningOfLog) {
-
-		if (Glob.isNoisy ||
-		   (strstr(fmt, "info depth ")!=fmt && strstr(fmt, "info currmove ")!=fmt)) {
+        // Keep search "info depth"/"info currmove" spam out of the log unless
+        // verbose. Checking the formatted text's prefix is equivalent to the old
+        // check against the format string (both only care about a leading match).
+        if (Glob.isNoisy ||
+           (strncmp(text, "info depth ", 11) != 0 && strncmp(text, "info currmove ", 14) != 0)) {
 
             FILE *logFile = NULL;
             logFile = fopen(WStr2Str(LogFileWStr).c_str(), "a+");
             if (logFile) {
-                fprintf(logFile, "%s", preStr);
-                vfprintf(logFile, fmt, ap);
+                fprintf(logFile, "%s", logPrefix);
+                fputs(text, logFile);
                 fclose(logFile);
             }
         }
     }
+}
 
+// Format a printf-style message into a std::string. Formatting once (instead of
+// the old two vfprintf calls sharing a single consumed va_list) is also what lets
+// the sink write the identical bytes to both console and log.
+static std::string VFormat(const char *fmt, va_list ap)
+{
+    va_list ap2;
+    va_copy(ap2, ap);
+    int n = vsnprintf(NULL, 0, fmt, ap2);
+    va_end(ap2);
+
+    std::string out;
+    if (n > 0) {
+        out.resize((size_t)n);
+        vsnprintf(&out[0], (size_t)n + 1, fmt, ap);
+    }
+    return out;
+}
+
+void printfLog(const char *preStr, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    std::string text = VFormat(fmt, ap);
     va_end(ap);
+
+    // preStr ">> " marks the uci-in echo: it goes to the log only, never console.
+    Sink.Emit(strcmp(preStr, ">> ") != 0, preStr, text.c_str());
+}
+
+void printfCon(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    std::string text = VFormat(fmt, ap);
+    va_end(ap);
+
+    Sink.Emit(true, NULL, text.c_str()); // console only, no log (the old bare printf())
 }
 
 bool IsProcessRunning(const char *processToFind)

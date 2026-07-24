@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -558,20 +559,20 @@ void cParam::SetVal(int slot, int val, int min, int max, bool tune) {
     max_val[slot] = max;
     tunable[slot] = tune;
     if (val < min || val > max)
-        printf("%14s ERROR\n", paramNames[slot]);
+        printfCon("%14s ERROR\n", paramNames[slot]);
 }
 
 void cParam::PrintValues(int startTune, int endTune) {
 
     int iter = 0;
 
-    printf("Values \n\n");
+    printfCon("Values \n\n");
     for (int i = startTune; i < endTune; ++i) {
         if (tunable[i] == true) {
-            printf("%14s : %4d     ", paramNames[i], Par.values[i]);
+            printfCon("%14s : %4d     ", paramNames[i], Par.values[i]);
             iter++;
-            if (iter % 4 == 0) printf("\n");
+            if (iter % 4 == 0) printfCon("\n");
         }
     }
-    printf("\n\n");
+    printfCon("\n\n");
 }

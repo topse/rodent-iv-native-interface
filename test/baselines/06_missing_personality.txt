@@ -1,0 +1,28 @@
+info depth 1
+info depth 1 time <T> nodes 2 nps <N> score cp -41 pv b4b2 
+info depth 2
+info depth 2 time <T> nodes 168 nps <N> score cp -29 pv b4b2 e3d2 
+info depth 3
+info depth 3 time <T> nodes 820 nps <N> score cp -7 pv b4b2 e3d2 a8b8 
+info depth 4
+info depth 4 time <T> nodes 1574 nps <N> score cp -31 pv b4b2 e3d2 b2b6 d3d4 a8d8 
+info depth 5
+info depth 5 time <T> nodes 2476 nps <N> score cp -49 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 
+info depth 6
+info depth 6 time <T> nodes 4933 nps <N> score cp -62 pv b4b2 e3d2 b2a3 f3d4 a8d8 f1f6 d8d4 
+info depth 7
+info depth 7 time <T> nodes 14521 nps <N> score cp -83 pv b4b2 e3d2 b2a3 f3e5 a8d8 a1d1 a3c5 d3d4 
+info depth 8
+info depth 8 time <T> nodes 17075 nps <N> score cp -74 pv b4b2 
+info depth 8 time <T> nodes 17508 nps <N> score cp -67 pv b4b2 
+info depth 8 time <T> nodes 18798 nps <N> score cp -60 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 b6a5 b1b7 e6c4 
+info depth 9
+info depth 9 time <T> nodes 26514 nps <N> score cp -70 pv b4b2 e3d2 b2b6 d3d4 a8d8 f1b1 b6a7 e4e5 f6g4 d2g5 
+info depth 10
+info depth 10 time <T> nodes 45266 nps <N> score cp -97 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 
+info depth 11
+info depth 11 time <T> nodes 55205 nps <N> score cp -92 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 f3g5 c6c4 
+info depth 12
+info depth 12 time <T> nodes 77074 nps <N> score cp -86 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 f7f6 e5f6 g7f6 
+bestmove b4b2 ponder e3d2
+readyok

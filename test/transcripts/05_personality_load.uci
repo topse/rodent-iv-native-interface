@@ -1,0 +1,14 @@
+# Locks the ReadPersonality path (PersonalityFile + Personality combo forms).
+# NOTE (characterisation, not aspiration): in the current build a mid-session
+# personality load changes only the opening book, not the mid-game eval, so with
+# the book off these searches are identical to the default personality. This
+# baseline locks that behaviour -- if a refactor changes personality loading, the
+# diff catches it.
+setoption name Threads value 1
+setoption name UseBook value false
+setoption name PersonalityFile cloe.txt
+position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
+go depth 12
+setoption name Personality value tal
+go depth 12
+quit

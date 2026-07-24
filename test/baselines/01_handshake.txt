@@ -1,0 +1,20 @@
+id name Rodent IV 0.33
+id author Pawel Koziol, Bernhard C. Maerz (based on Sungorus 1.4 by Pablo Vazquez)
+option name Clear Hash type button
+option name Hash type spin default 16 min 1 max 4096
+option name Threads type spin default 1 min 1 max 48
+option name MultiPV type spin default 1 min 1 max 12
+option name TimeBuffer type spin default 10 min 0 max 1000
+option name PrintPv type check default true
+option name Taunting type check default false
+option name UCI_LimitStrength type check default true
+option name UCI_Elo type spin default 2800 min 800 max 2800
+option name UCI_Chess960 type check default false
+option name Personality type combo default --- var --- var Alekhine var Amanda var Ampere var Anand var Anderssen var Bosboom.txt var Botvinnik var Cloe var Deborah var Defender var Dynamic var Fischer var Grumpy var Karpov var Kasparov var Kortchnoi var Larsen var Lasker var Marshall var Morphy var Nimzowitsch var Partisan var Pawnsacker var Pedrita var Petrosian var Preston var Reti var Rubinstein var Simple var Spassky var Spitfire var Strangler var Steinitz var Tarrasch var Tal var Topalov
+option name Verbose type check default false
+option name Ponder type check default false
+option name UseBook type check default true
+option name VerboseBook type check default false
+option name MobilityRebalancing type check default false
+uciok
+readyok

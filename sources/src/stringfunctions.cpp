@@ -2,6 +2,7 @@
 Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2020-2020 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -86,62 +87,62 @@ void TestStrFunctions() {
     std::string testStr;
     std::wstring testWStr;
 
-    printf("\nString conversion samples in TestStrFunctions():\n");
+    printfCon("\nString conversion samples in TestStrFunctions():\n");
 
-    printf("\n");
+    printfCon("\n");
     
     testStr = "direct";
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
     testWStr = L"direct";
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
 
-    printf("\n");
+    printfCon("\n");
     
     testStr = CStr2Str("using CStr2Str");
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
     testStr = WCStr2Str(L"using WCStr2Str");
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
     testWStr = L"using WStr2Str"; testStr = WStr2Str(testWStr);
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
 
     testWStr = WCStr2WStr(L"using WCStr2WStr");
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
     testWStr = CStr2WStr("using CStr2WStr");
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
     testStr = "using Str2WStr"; testWStr = Str2WStr(testStr);
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
     
 #ifdef STR_OVERLOAD
 
-    printf("\n");
+    printfCon("\n");
 
     testStr = Str("using Str=>CStr2Str");
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
     testStr = Str(L"using Str=>WCStr2Str");
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
     testWStr = L"using Str=>WStr2Str"; testStr = Str(testWStr);
-    printf("testStr=\"%s\"\n", testStr.c_str());
+    printfCon("testStr=\"%s\"\n", testStr.c_str());
 
     testWStr = WStr(L"using WStr=>WCStr2WStr");
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
     testWStr = WStr("using WStr=>CStr2WStr");
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
     testStr = "using WStr=>Str2WStr"; testWStr = WStr(testStr);
-    printf("testWStr=L\"%ls\"\n", testWStr.c_str());
+    printfCon("testWStr=L\"%ls\"\n", testWStr.c_str());
 
-    printf("\n");
+    printfCon("\n");
 
     // Nice thing, avoiding "#if defined(_WIN32) || defined(_WIN64)"
     #define WinPath L"c:\\temp"
     #define linuxPath "/tmp"
 
-    printf("WinPath with Str=\"%s\"\n",   Str(WinPath).c_str());
-    printf("LinuxPath with Str=\"%s\"\n", Str(linuxPath).c_str());
-    printf("WinPath with WStr=\"%ls\"\n",   WStr(WinPath).c_str());
-    printf("LinuxPath  with WStr=\"%ls\"\n", WStr(linuxPath).c_str());
+    printfCon("WinPath with Str=\"%s\"\n",   Str(WinPath).c_str());
+    printfCon("LinuxPath with Str=\"%s\"\n", Str(linuxPath).c_str());
+    printfCon("WinPath with WStr=\"%ls\"\n",   WStr(WinPath).c_str());
+    printfCon("LinuxPath  with WStr=\"%ls\"\n", WStr(linuxPath).c_str());
 
 #endif
 
-    printf("\n");
+    printfCon("\n");
 }
 */

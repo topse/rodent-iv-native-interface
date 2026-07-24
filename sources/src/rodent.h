@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -65,6 +66,7 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #include <cstdint>
 #include <cinttypes>
+#include <cstdio>
 #include <string>
 #include "stringfunctions.h"
 
@@ -691,7 +693,7 @@ class cParam {
     void SetVal(int slot, int val, int min, int max, bool tune);
 };
 
-extern cParam Par;
+extern cParam& Par;
 
 class cDistance {
   public:
@@ -825,7 +827,7 @@ class cGlobals {
 	void SetAvoidMove(int loc, int move);
 };
 
-extern cGlobals Glob;
+extern cGlobals& Glob;
 
 #define ZEROARRAY(x) memset(x, 0, sizeof(x))
 
@@ -1007,9 +1009,9 @@ class cEngine {
 
 #ifdef USE_THREADS
     #include <list>
-    extern std::list<cEngine> Engines;
+    extern std::list<cEngine>& Engines;
 #else
-    extern cEngine EngineSingle;
+    extern cEngine& EngineSingle;
 #endif
 
 void PrintVersion();
@@ -1026,7 +1028,7 @@ const char *ParseToken(const char *, char *);
 void PrintMove(int move);
 void PrintSingleOption(int ind);
 void PrintUciOptions();
-void ReadLine(char *, int);
+bool ReadLine(char *, int);
 void ReadPersonality(const char *fileName);
 void ReadThreadNumber(const char *fileName);
 void UciLoop();
@@ -1089,10 +1091,30 @@ extern const int ph_value[7];
     constexpr bool isabsolute(const char *path) { return path[0] == '/'; }
 #endif
 
+// The output seam. Every line the engine emits goes through this one sink -- the
+// single place in the library that is allowed to touch the console. For now there
+// is one global instance writing to a console stream (stdout by default) plus the
+// optional log file configured by LogFileWStr; a later phase makes it per-engine
+// instance state (a std::function/listener) so nothing is process-global.
+class cSink {
+public:
+    FILE *console = stdout;
+
+    // Emit one already-formatted message.
+    //   toConsole - write text to the console stream (false only for the uci-in echo)
+    //   logPrefix - if non-null, also append (logPrefix + text) to the log file,
+    //               with the same info-line filtering as before; null = console-only
+    //               (the old bare printf(), which never logged).
+    void Emit(bool toConsole, const char *logPrefix, const char *text);
+};
+
+extern cSink& Sink;
+
 #define printfUciIn(...)  printfLog(">> ", __VA_ARGS__)
 #define printfUciOut(...) printfLog("<< ", __VA_ARGS__)
 #define printfUciAdd(...) printfLog("", __VA_ARGS__)
 void printfLog(const char *preStr, const char *fmt, ...);
+void printfCon(const char *fmt, ...); // console-only output; replaces bare printf() in the library
 
 #ifndef NDEBUG
     #define printf_debug(...) printfLog("", "(debug) " __VA_ARGS__)
@@ -1101,7 +1123,7 @@ void printfLog(const char *preStr, const char *fmt, ...);
 #endif
 
 #include "chessheapclass.h"
-extern ChessHeapClass Trans;
+extern ChessHeapClass& Trans;
 
 #ifndef NO_THREADS
     extern int tDepth[MAX_THREADS];

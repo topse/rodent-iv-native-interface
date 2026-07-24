@@ -1,0 +1,15 @@
+# Fixed-depth searches over several positions, exercising move application and
+# a spread of middlegame/endgame shapes. UseBook is off because book moves are
+# time-seeded random (book.cpp: srand(GetMS())) and would not be reproducible.
+setoption name Threads value 1
+setoption name UseBook value false
+ucinewgame
+position startpos moves e2e4 e7e5 g1f3 b8c6 f1b5 a7a6
+go depth 12
+position fen 8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -
+go depth 14
+position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
+go depth 13
+position fen 4rrk1/pp1n3p/3q2pQ/2p1pb2/2PP4/2P3N1/P2B2PP/4RRK1 b - - 7 19
+go depth 12
+quit

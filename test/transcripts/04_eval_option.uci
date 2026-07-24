@@ -1,0 +1,12 @@
+# Locks the eval-application path: a direct eval-weight setoption must change the
+# search (nodes/score/pv). The three go's on the same position must differ from
+# each other. Guards regressions in setvalue()/InitPst()/shouldClear handling.
+setoption name Threads value 1
+setoption name UseBook value false
+position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
+go depth 12
+setoption name PawnValueMg value 50
+go depth 12
+setoption name PawnValueMg value 200
+go depth 12
+quit

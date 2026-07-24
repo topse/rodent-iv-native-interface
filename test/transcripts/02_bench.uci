@@ -1,0 +1,4 @@
+# Bench: locks the node count (build + search identity). Deterministic and
+# personality-invariant (bench uses the default eval regardless of personality).
+bench 8
+quit

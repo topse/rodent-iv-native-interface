@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -50,7 +51,8 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #endif
 
-ChessHeapClass Trans;
+// Trans is now a member of the single EngineContext (defined in main.cpp) and
+// reaches this code as the reference alias declared in rodent.h. (phase 3)
 
 void ChessHeapClass::AllocTrans(unsigned int mbsize) {
 

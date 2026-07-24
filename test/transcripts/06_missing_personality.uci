@@ -1,0 +1,10 @@
+# Degrade-not-crash: loading a nonexistent personality file must not crash or
+# exit; the engine stays alive and keeps searching. (Plan risk item: personality
+# reads during setoption must degrade via output, not process death.)
+setoption name Threads value 1
+setoption name UseBook value false
+setoption name PersonalityFile this_file_does_not_exist_zzz.txt
+position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
+go depth 12
+isready
+quit

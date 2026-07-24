@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -1279,16 +1280,19 @@ void CheckTimeout() {
     char command[80];
 
     if (InputAvailable()) {
-        ReadLine(command, sizeof(command));
-        if (strcmp(command, "stop") == 0)
+        if (!ReadLine(command, sizeof(command))) {
+            // stdin closed mid-search: treat as quit. Abort and defer termination
+            // until the search unwinds and threads join (never exit() in here).
+            Glob.abortSearch = true;
+            Glob.goodbye = true;
+        } else if (strcmp(command, "stop") == 0)
             Glob.abortSearch = true;
         else if (strcmp(command, "quit") == 0) {
-#ifndef USE_THREADS
-            exit(0);
-#else
+            // Abort now, but let the search unwind and the worker threads join;
+            // UciLoop ends the loop once ParseGo returns. (Was: exit(0) in the
+            // no-threads build, which cannot run destructors cleanly.)
             Glob.abortSearch = true;
-            Glob.goodbye = true; // will crash if just `exit()`. should wait until threads are terminated
-#endif
+            Glob.goodbye = true;
         }
         else if (strcmp(command, "ponderhit") == 0)
             Glob.pondering = false;

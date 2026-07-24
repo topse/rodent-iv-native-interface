@@ -2,6 +2,7 @@
 Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -314,9 +315,9 @@ U64 cBitBoard::KingAttacks(int sq) {
 void cBitBoard::Print(U64 bb) {
 
     for (int sq = 0; sq < 64; sq++) {
-        if (bb & RelSqBb(sq, BC)) printf("+ ");
-        else                      printf(". ");
-        if ((sq + 1) % 8 == 0) printf(" %d\n", 9 - ((sq + 1) / 8));
+        if (bb & RelSqBb(sq, BC)) printfCon("+ ");
+        else                      printfCon(". ");
+        if ((sq + 1) % 8 == 0) printfCon(" %d\n", 9 - ((sq + 1) / 8));
     }
-    printf("\na b c d e f g h\n");
+    printfCon("\na b c d e f g h\n");
 }

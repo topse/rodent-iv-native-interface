@@ -1,0 +1,4 @@
+# UCI handshake: locks the id strings and the full option banner + readyok.
+uci
+isready
+quit

@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -34,6 +35,8 @@ eSquare POS::Castle_B_RQ;
 eSquare POS::Castle_B_K;
 eSquare POS::Castle_B_RK;
 
+// Written once in Init960() and read-only thereafter (like BB/Mask/Dist), so left
+// process-global -- see the phase-3 audit list in PLAN_RODENT.md.
 unsigned char CastleFile_RQ;
 unsigned char CastleFile_RK;
 
@@ -53,6 +56,8 @@ U64 POS::CastleMask_B_KS;
 U64 POS::CastleMask_B_QS;
 
 #ifndef NO_THREADS
+    // SMP per-worker depth tracking; folds into the per-instance engine with the
+    // rest of the SMP state (Engines) in phase 4 -- see PLAN_RODENT.md audit list.
     int tDepth[MAX_THREADS];
 #endif
 int cEngine::msMoveTime;

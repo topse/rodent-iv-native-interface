@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -33,16 +34,20 @@ If not, see <http://www.gnu.org/licenses/>.
     #include <unistd.h>
 #endif
 
-void ReadLine(char *str, int n) {
+// Returns false on end-of-input (stdin closed). The caller decides what that
+// means -- at the UCI prompt it is treated as a clean quit; nothing here touches
+// the process. (Was: exit(0) on EOF.)
+bool ReadLine(char *str, int n) {
 
     char *ptr;
 
     if (fgets(str, n, stdin) == NULL)
-        exit(0);
+        return false;
     if ((ptr = strchr(str, '\n')) != NULL)
         *ptr = '\0';
 
     printfUciIn("%s\n", str);
+    return true;
 }
 
 const char *ParseToken(const char *string, char *token) {
@@ -60,12 +65,12 @@ void UciLoop() {
     char command[4096], token[80]; const char *ptr;
     POS p[1];
 
-    setbuf(stdin, NULL);
-    setbuf(stdout, NULL);
+    // setbuf() now lives in main() -- the adapter owns process-level stdio.
     p->SetPosition(START_POS);
     Trans.AllocTrans(16);
     for (;;) {
-        ReadLine(command, sizeof(command));
+        if (!ReadLine(command, sizeof(command)))
+            break;                      // EOF on stdin -> clean quit
         ptr = ParseToken(command, token);
 
         if (strcmp(token, "uci") == 0)               {
@@ -106,9 +111,9 @@ void UciLoop() {
             Engines.front().LoadEpd();
             Glob.isTuning = true;
 #ifndef USE_THREADS
-            printf("FIT: %lf\n", EngineSingle.TexelFit(p, pv));
+            printfCon("FIT: %lf\n", EngineSingle.TexelFit(p, pv));
 #else
-             printf("FIT: %lf\n", Engines.front().TexelFit(p, Engines.front().mPvEng));
+             printfCon("FIT: %lf\n", Engines.front().TexelFit(p, Engines.front().mPvEng));
             //Engines.front().TuneMe(p, Engines.front().mPvEng, 2000);
 
 #endif
@@ -122,8 +127,11 @@ void UciLoop() {
             Engines.front().Bench(atoi(token));
 #endif
         } else if (strcmp(token, "quit") == 0)       {
-            exit(0);
+            break;                      // was exit(0); let main() decide the exit code
         }
+
+        if (Glob.goodbye)
+            break;                      // quit/EOF received during a search (set in CheckTimeout)
     }
 }
 
@@ -375,8 +383,8 @@ void ParseGo(POS *p, const char *ptr) {
         Engines.front().MultiPv(p, pv);
 #endif
 
-        if (Glob.goodbye)
-            exit(0);
+        // If quit arrived during the search, Glob.goodbye is set; UciLoop sees it
+        // after ParseGo returns and terminates the loop cleanly (was: exit(0)).
     }
 
     if (Glob.multiPv == 1) {
@@ -414,8 +422,8 @@ void ParseGo(POS *p, const char *ptr) {
 
     timer.join();
 
-    if (Glob.goodbye)
-        exit(0);
+    // Threads have joined; if quit arrived mid-search Glob.goodbye is set and
+    // UciLoop will break after ParseGo returns (was: exit(0)).
 
     int *best_pv = NULL;
 	int best_depth = -1;
@@ -466,7 +474,7 @@ void cEngine::Bench(int depth) {
     mDpCompleted = 0; // maybe move to ClearAll()?
     Par.shut_up = true;
 
-    printf("Bench test started (depth %d): \n", depth);
+    printfCon("Bench test started (depth %d): \n", depth);
 
     Glob.nodes = 0;
     Glob.abortSearch = false;
@@ -476,7 +484,7 @@ void cEngine::Bench(int depth) {
     // search each position to desired depth
 
     for (int i = 0; test[i]; ++i) {
-        printf("%s\n", test[i]);
+        printfCon("%s\n", test[i]);
         p->SetPosition(test[i]);
         Par.InitAsymmetric(p);
         Glob.depthReached = 0;
@@ -488,7 +496,7 @@ void cEngine::Bench(int depth) {
     int end_time = GetMS() - msStartTime;
     unsigned int nps = (unsigned int)((Glob.nodes * 1000) / (end_time + 1));
 
-    printf("%" PRIu64 " nodes searched in %d, speed %u nps (Score: %.3f)\n", (U64)Glob.nodes, end_time, nps, (float)nps / 430914.0);
+    printfCon("%" PRIu64 " nodes searched in %d, speed %u nps (Score: %.3f)\n", (U64)Glob.nodes, end_time, nps, (float)nps / 430914.0);
     Glob.isBenching = false;
 }
 

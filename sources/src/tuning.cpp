@@ -1,3 +1,5 @@
+// Modified 2026 by T. Steinmann (Rodent IV libification fork)
+
 #include <stdio.h>
 #include <math.h>
 #include "rodent.h"
@@ -20,7 +22,7 @@ void cEngine::LoadEpd() {
     int readCnt = 0;
 
     if (epdFile == NULL) {
-        printf("Epd file not found!");
+        printfCon("Epd file not found!");
         return;
     }
 
@@ -30,7 +32,7 @@ void cEngine::LoadEpd() {
         posString = line;
         readCnt++;
         if (readCnt % 100000 == 0)
-            printf("%d positions loaded\n", readCnt);
+            printfCon("%d positions loaded\n", readCnt);
 
         if (posString.find("1/2-1/2") != std::string::npos) {
             epd05[cnt05] = posString;
@@ -47,7 +49,7 @@ void cEngine::LoadEpd() {
     }
 
     fclose(epdFile);
-    printf("%d Total positions loaded\n", readCnt);
+    printfCon("%d Total positions loaded\n", readCnt);
 }
 
 int startTune = P_MID;
@@ -66,7 +68,7 @@ bool cEngine::TuneOne(POS *p, int *pv, int par) {
         Par.values[par] += step;
         Par.Recalculate();
         curr_tune = TexelFit(p, pv);
-        printf("\n%f after adding %d \n", curr_tune, step);
+        printfCon("\n%f after adding %d \n", curr_tune, step);
         if (curr_tune < best_tune) {
             best_tune = curr_tune;
             return true;
@@ -77,7 +79,7 @@ bool cEngine::TuneOne(POS *p, int *pv, int par) {
         Par.values[par] -= 2 * step;
         Par.Recalculate();
         curr_tune = TexelFit(p, pv);
-        printf("\n%f after substracting %d \n", curr_tune,step);
+        printfCon("\n%f after substracting %d \n", curr_tune,step);
         if (curr_tune < best_tune) {
             best_tune = curr_tune;
             return true;
@@ -92,7 +94,7 @@ bool cEngine::TuneOne(POS *p, int *pv, int par) {
 void cEngine::TuneMe(POS *p, int *pv, int iterations) {
 
     best_tune = TexelFit(p, pv);
-    printf("%f \n", best_tune);
+    printfCon("%f \n", best_tune);
     int test = 0;
 
     for (int i = 0; i < N_OF_VAL; i++)
@@ -103,7 +105,7 @@ void cEngine::TuneMe(POS *p, int *pv, int iterations) {
         if (test > iterations) break;
         for (int par = startTune; par < endTune; ++par) {
             if (Par.wait[par] == 0 && Par.tunable[par]) {
-                printf("Iteration %4d, testing %14s\r", test, paramNames[par]);
+                printfCon("Iteration %4d, testing %14s\r", test, paramNames[par]);
                 if (TuneOne(p, pv, par))
                     Par.PrintValues(startTune, endTune);
                 else Par.wait[par] = 2;
@@ -114,7 +116,7 @@ void cEngine::TuneMe(POS *p, int *pv, int iterations) {
             }
         }
         if (step > 1) step--;
-    //    printf("Step is %d \n", step);
+    //    printfCon("Step is %d \n", step);
     }
 }
 

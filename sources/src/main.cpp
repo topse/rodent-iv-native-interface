@@ -3,6 +3,7 @@ Rodent, a UCI chess playing engine derived from Sungorus 1.4
 Copyright (C) 2009-2011 Pablo Vazquez (Sungorus author)
 Copyright (C) 2011-2019 Pawel Koziol
 Copyright (C) 2020-2020 Bernhard C. Maerz
+Modified 2026 by T. Steinmann (Rodent IV libification fork)
 
 Rodent is free software: you can redistribute it and/or modify it under the terms of the GNU
 General Public License as published by the Free Software Foundation, either version 3 of the
@@ -18,23 +19,62 @@ If not, see <http://www.gnu.org/licenses/>.
 
 #include "rodent.h"
 #include "book.h"
+#include <cstdio>   // setbuf (adapter owns process stdio)
 #include <cstdlib>
 #include <string>
-
-cGlobals Glob;
-
 #ifdef USE_THREADS
     #include <list>
-    std::list<cEngine> Engines(1);
-#else
-    cEngine EngineSingle(0);
 #endif
+
+// Phase 3: all mutable per-engine state is gathered into one object that main()
+// owns. For now there is a single global instance (Context) and the former
+// globals below are non-owning reference aliases into it, so the ~590 existing
+// use sites are unchanged and the harness stays byte-identical. Phase 4 makes
+// EngineContext per-rodent::Engine, routes those references to the instance and
+// drops the aliases. Read-only lookup tables (BB/Mask/Dist and the magic-move
+// tables) deliberately stay process-global -- see their note further down and in
+// the audit list in PLAN_RODENT.md.
+//
+// Construction is order-independent here: none of these types' constructors touch
+// another of these globals (cGlobals/cParam have no user ctor; sBook/cSink are
+// trivial; cEngine's ctor only clears its own arrays), so the member order and
+// the alias order below carry no static-init hazard.
+struct EngineContext {
+    cSink          Sink;        // the output seam (phase 2)
+    cGlobals       Glob;        // run state + option flags
+    cParam         Par;         // the personality, mutated by every setoption
+    ChessHeapClass Trans;       // transposition table
+    sBook          GuideBook;   // opening books
+    sBook          MainBook;
+#ifdef USE_THREADS
+    std::list<cEngine> Engines; // SMP worker pool
+    EngineContext(): Engines(1) {}
+#else
+    cEngine        EngineSingle;
+    EngineContext(): EngineSingle(0) {}
+#endif
+};
+
+EngineContext Context; // the one instance main() owns
+
+// Reference aliases into Context: existing code keeps using Glob/Par/Trans/...
+// unchanged. Removed in phase 4 when references become per-instance.
+cGlobals&           Glob      = Context.Glob;
+cParam&             Par       = Context.Par;
+ChessHeapClass&     Trans     = Context.Trans;
+sBook&              GuideBook = Context.GuideBook;
+sBook&              MainBook  = Context.MainBook;
+cSink&              Sink      = Context.Sink;
+#ifdef USE_THREADS
+std::list<cEngine>& Engines      = Context.Engines;
+#else
+cEngine&            EngineSingle = Context.EngineSingle;
+#endif
+
+// Read-only after their Init() calls in main(); safe to share process-wide.
 cBitBoard BB;
-cParam Par;
-cMask Mask;
+cMask     Mask;
 cDistance Dist;
-sBook GuideBook;
-sBook MainBook;
 
 void PrintVersion() {
     std::string OutStr;
@@ -149,7 +189,14 @@ if (Glob.isNoisy) {
 
     CheckGUI();
 
+    // Process-level stdio config belongs to the adapter, not the engine loop
+    // (moved out of UciLoop). Unbuffered so a GUI sees output immediately.
+    setbuf(stdin, NULL);
+    setbuf(stdout, NULL);
+
     UciLoop();
+
+    return 0; // the adapter owns the process exit code; the library never exits
 }
 
 void cGlobals::Init() {
@@ -183,6 +230,7 @@ void cGlobals::Init() {
 #endif
 
     shouldClear = false;
+    goodbye = false; // set true when quit/EOF arrives during a search (see CheckTimeout)
     isConsole = true;
     eloSlider = true;
 	multiPv = 1;
