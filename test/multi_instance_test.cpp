@@ -20,7 +20,7 @@ Run under ASan and TSan (see run_multi_instance.sh) to catch races on any state
 that is still shared behind the scenes.
 */
 
-#include "engine.h"
+#include "rodent/engine.h" // public API only -- this also proves the header stands alone
 
 #include <cctype>
 #include <cstdio>
@@ -106,7 +106,9 @@ static std::string RunScript(const std::vector<std::string> &lines) {
 int main() {
 
     // Host responsibility (not the library's): resolve the resource directory once.
-    SetRodentHomeDir();
+    // run_multi_instance.sh points RODENT4HOME at the repo root.
+    const char *home = std::getenv("RODENT4HOME");
+    rodent::SetResourceDir(home ? home : ".");
 
     const std::vector<std::string> common_head = {
         "uci",

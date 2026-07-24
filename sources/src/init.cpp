@@ -71,9 +71,13 @@ void POS::Init960() { // static init function for chess960
     Glob.CastleFile_RK = File(Glob.Castle_W_RK);
 }
 
-void POS::Init() { // static init function
+// Standard-chess castle configuration. This writes per-instance state (Glob), so
+// unlike the rest of Init() it must run once per engine instance, not once per
+// process: SetPosition() only rewrites it for a position that *has* castling
+// rights, so an instance starting from a "-" castling field would otherwise
+// inherit whatever its context was born with.
+void POS::InitCastleDefaults() {
 
-    // Init standard-chess
     Glob.Castle_W_RQ = A1;
     Glob.Castle_W_K  = E1;
     Glob.Castle_W_RK = H1;
@@ -81,6 +85,11 @@ void POS::Init() { // static init function
     Glob.Castle_B_K  = E8;
     Glob.Castle_B_RK = H8;
     Init960();
+}
+
+void POS::Init() { // static init function
+
+    InitCastleDefaults();
 
     for (int i = 0; i < 12; i++)
         for (int j = 0; j < 64; j++)

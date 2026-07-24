@@ -29,7 +29,7 @@ CXX="${CXX:-g++}"
 STD="-std=c++14"
 SRCS=$(ls "$SRC_DIR"/*.cpp | grep -v '/main.cpp$')
 TEST_SRC="$TEST_DIR/multi_instance_test.cpp"
-COMMON="-fno-rtti -pthread -I$SRC_DIR"
+COMMON="-fno-rtti -pthread -I$SRC_DIR -I$REPO_ROOT/include"
 
 fail=0
 

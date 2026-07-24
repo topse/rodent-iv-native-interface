@@ -54,5 +54,5 @@ struct sBook {
     ~sBook() { ClosePolyglot(); }
 };
 
-extern sBook& GuideBook;
-extern sBook& MainBook;
+// GuideBook and MainBook are per-instance members of EngineContext, reached
+// through the macros in rodent.h -- no global declarations here any more.

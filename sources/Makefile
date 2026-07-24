@@ -1,3 +1,5 @@
+# Modified 2026 by T. Steinmann (Rodent IV libification fork)
+
  #define the directory for the executable file
 BINDIR = /usr/bin
 
@@ -7,9 +9,12 @@ DATADIR = /usr/share/rodentIV
 # define the C compiler to use
 CC = g++
 
+# the fork's public header (include/rodent/engine.h), used by src/engine.cpp
+INCLUDES = -I../include
+
 # define the compile-time flags
-CFLAGS = -g -w -Wfatal-errors -pipe -DNDEBUG -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays -DBOOKPATH=$(DATADIR)
-C1FLAGS = -g -w -Wfatal-errors -pipe -DWRITEDEBUGFILE -DBOOKPATH=$(DATADIR)
+CFLAGS = -g -w -Wfatal-errors -pipe -DNDEBUG -O3 -fno-rtti -finline-functions -fprefetch-loop-arrays -DBOOKPATH=$(DATADIR) $(INCLUDES)
+C1FLAGS = -g -w -Wfatal-errors -pipe -DWRITEDEBUGFILE -DBOOKPATH=$(DATADIR) $(INCLUDES)
 
 # define the link options
 LDFLAGS = -s -lm

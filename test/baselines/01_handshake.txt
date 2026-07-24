@@ -1,4 +1,4 @@
-id name Rodent IV 0.33
+id name Rodent IV 0.33 native API fork
 id author Pawel Koziol, Bernhard C. Maerz (based on Sungorus 1.4 by Pablo Vazquez)
 option name Clear Hash type button
 option name Hash type spin default 16 min 1 max 4096

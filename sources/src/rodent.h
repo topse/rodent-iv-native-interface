@@ -431,6 +431,11 @@ class POS {
     NOINLINE static U64 Random64();
 
     static void Init();
+    // The castle configuration Init() sets up is per-instance state (it lives in
+    // cGlobals and is rewritten by every SetPosition), while the rest of Init() is
+    // process-shared read-only tables run once. Each engine instance therefore has
+    // to run this part for itself.
+    static void InitCastleDefaults();
     static void Init960();
     bool Is960();
 
@@ -1202,6 +1207,7 @@ extern std::wstring LogFileWStr;
 extern bool SkipBeginningOfLog;
 
 void FullPathEndSlash(std::wstring &pathWStr);
+void PathEndSlash(std::wstring &pathWStr);   // declared for rodent::SetResourceDir (phase 5)
 void SetRodentHomeDir();
 void CreateRodentHome(const char *RodentDir);
 void ChangePersonalitySet(int persSetNo);

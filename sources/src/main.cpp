@@ -26,16 +26,15 @@ If not, see <http://www.gnu.org/licenses/>.
     #include <list>
 #endif
 
-// Phase 4: EngineContext (defined in rodent.h) bundles all the mutable per-engine
-// state. The classic executable owns one instance; main() points its thread's
-// tls_ctx at it so the Glob/Par/Trans/Sink/book/Engines macros resolve here. A
-// future rodent::Engine will own one context each, for N coexisting instances.
-// Read-only lookup tables (BB/Mask/Dist and the magic-move tables) deliberately
-// stay process-global -- see their note below and the audit list in PLAN_RODENT.md.
+// EngineContext (defined in rodent.h) bundles all the mutable per-engine state; an
+// embedded rodent::Engine owns one each, and this executable owns exactly one.
+// main() points its thread's tls_ctx at it so the Glob/Par/Trans/Sink/book/Engines
+// macros resolve here. Read-only lookup tables (BB/Mask/Dist and the magic-move
+// tables) deliberately stay process-global -- see CLAUDE.md.
 EngineContext Context; // the one instance the classic exe owns
 // (BB/Mask/Dist are read-only shared tables; defined in data.cpp so any binary that
 //  links the engine but not this adapter -- e.g. the multi-instance test -- has them.
-//  PrintVersion() moved to uci.cpp and cGlobals::Init/CanReadBook to data.cpp so this
+//  PrintVersion() lives in uci.cpp and cGlobals::Init/CanReadBook in data.cpp so this
 //  file is purely the standalone-executable adapter over the engine library.)
 
 int main() {

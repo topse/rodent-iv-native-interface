@@ -65,7 +65,9 @@ const char *ParseToken(const char *string, char *token) {
 void PrintVersion() {
     std::string OutStr;
 
-    OutStr = "id name Rodent IV 0.33";
+    // The fork marker keeps binaries attributable (GPL provenance): this is upstream
+    // Rodent IV 0.33 restructured into an embeddable library. Keep it stable.
+    OutStr = "id name Rodent IV 0.33 native API fork";
 
 #if defined(DEBUG)
 

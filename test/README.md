@@ -1,6 +1,6 @@
 # Verification harness
 
-The behavioural safety net for the libification refactor (see `../PLAN_RODENT.md`).
+The behavioural safety net for the libification refactor (see `../CLAUDE.md`).
 It proves that a build still behaves byte-for-byte like the committed baseline
 captured from the unmodified upstream sources. Every refactor phase must keep it
 green.
@@ -8,10 +8,20 @@ green.
 ## Running
 
 ```sh
-test/run_harness.sh                 # build/rodentIV, building it via CMake if absent
+test/run_all.sh                     # everything: build, harness, sanitized multi-instance
+                                    # suite, example embedder, Makefile + NO_THREADS builds
+test/run_all.sh --quick             # same, without the ASan/TSan runs
+
+test/run_harness.sh                 # just this harness: build/rodentIV, built via CMake if absent
 test/run_harness.sh path/to/engine  # verify a specific binary
 test/run_harness.sh --update        # recapture baselines (only when a change is intended)
+
+test/run_multi_instance.sh          # just the two-instance suite (plain, ASan, TSan)
 ```
+
+`run_all.sh` is the entry point to run before calling a change done. It is a plain shell
+script on purpose — no dependency on a git host or a CI service; run it locally after
+cloning, or from whatever CI a downstream uses.
 
 Exit code is 0 iff every transcript matches its baseline and every liveness check
 passes. A clean clone can go straight to `test/run_harness.sh` — it will configure
