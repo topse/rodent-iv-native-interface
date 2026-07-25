@@ -70,9 +70,17 @@ The whole API is `include/rodent/engine.h` — read it, it is short. The contrac
 - **Errors never kill the host.** A missing personality or book, or a failed allocation,
   becomes an output line and a degraded-but-alive instance. The library contains no `exit()`
   or `abort()`.
+- **Stopping a search.** `Stop()` aborts the running search; the blocked `go …` returns once
+  it has unwound and delivered its `bestmove`. It is the one method that may be called from
+  another thread while `ProcessLine` is blocked, because it only raises the instance's atomic
+  abort flag. There is no `stop` UCI *command* to feed to `ProcessLine`: the classic executable
+  reaches the same flag by polling stdin from inside the search, which an embedded instance
+  neither can nor should do — so an embedder that offers UCI to its own callers translates
+  `stop` into `Stop()` itself.
 - **Instances are independent.** Each has its own personality, transposition table, opening
   books, search state and SMP workers. Drive each instance from its own thread; one instance
-  is not internally synchronised, so calls for the *same* instance must be serialised.
+  is not internally synchronised, so calls for the *same* instance must be serialised (`Stop()`
+  excepted, above).
 - **Resource paths are process-wide** (`SetResourceDir`), not per-instance — see Limitations.
 - The library exposes a C++ API only; a C ABI belongs in the consumer's FFI shim.
 
@@ -120,7 +128,7 @@ Everything below is structural. None of it changes how the engine plays.
   table, books, SMP workers, RNG, per-search time control, castling configuration, …) live in
   one `EngineContext` per instance, reached through a thread-local current-context; the
   read-only lookup tables stay shared and are initialised once per process.
-- **`rodent::Engine`** with the sink + `ProcessLine` API described above, plus the public
+- **`rodent::Engine`** with the sink + `ProcessLine`/`Stop` API described above, plus the public
   header that keeps the engine's internal macros out of a host's translation units.
 - **`main()` is an adapter** — path discovery, GUI detection, `setbuf`, stdin polling and the
   exit code; the engine library carries none of it.

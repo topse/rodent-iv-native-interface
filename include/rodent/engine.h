@@ -49,7 +49,7 @@ std::string ResourceDir();
 // transposition table, opening books and SMP workers. Drive each instance from
 // its own thread; a single instance is not internally synchronised, so calls for
 // one instance must be serialised (ProcessLine blocks until the engine is done
-// with the line, including for `go`).
+// with the line, including for `go`). Stop() is the one exception -- see below.
 class Engine {
 public:
     // Receives one null-terminated line, usually newline-terminated, exactly as
@@ -77,6 +77,21 @@ public:
     // -- destroying the instance is the usual answer; the object stays valid
     // either way.
     bool ProcessLine(const std::string &line);
+
+    // Abort a running search. The blocked ProcessLine("go ...") returns once the
+    // search has unwound and its `bestmove` has reached the sink, exactly as if
+    // the search had run out of time.
+    //
+    // This is the ONLY method that may be called while another thread is inside
+    // ProcessLine for the same instance: it just raises this instance's atomic
+    // abort flag -- the same one the destructor raises -- and touches nothing
+    // else. There is no `stop` UCI command to feed to ProcessLine instead; the
+    // classic executable reaches the flag by polling stdin from inside the
+    // search, which an embedded instance neither can nor should do.
+    //
+    // A no-op when no search is running: every `go` clears the flag on entry, so
+    // a Stop() raised while idle cannot leak into the next search.
+    void Stop();
 
 private:
     struct Impl;

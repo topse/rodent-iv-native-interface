@@ -161,4 +161,18 @@ bool Engine::ProcessLine(const std::string &line) {
     return UciCommand(&mImpl->pos, command);
 }
 
+void Engine::Stop() {
+
+    // Deliberately the whole implementation: raising this instance's abort flag
+    // is what CheckTimeout() does when the classic executable reads "stop" from
+    // stdin (search.cpp), and what ~Engine() does to cut a search short. The flag
+    // is atomic under USE_THREADS, so no lock is needed and nothing else in the
+    // context is touched -- which is what makes this callable while another
+    // thread sits inside ProcessLine("go ...") for the same instance.
+    //
+    // No tls_ctx assignment here, on purpose: the calling thread is not driving
+    // this instance and must not be repointed at its context.
+    mImpl->ctx.mGlob.abortSearch = true;
+}
+
 } // namespace rodent

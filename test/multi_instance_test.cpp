@@ -14,7 +14,10 @@ one process are independent:
     own thread, with its own SMP worker + timer threads). For a correct design the
     concurrent output of an instance equals its own sequential output byte-for-byte
     (after masking the nondeterministic time/nps/hashfull fields, as the harness
-    filter does).
+    filter does);
+  * Stop() ends a would-be-endless search from another thread, and ends it on the
+    instance it was called on only -- the cross-thread abort an embedder needs, and
+    the one call allowed to run concurrently with that instance's ProcessLine.
 
 Run under ASan and TSan (see run_multi_instance.sh) to catch races on any state
 that is still shared behind the scenes.
@@ -23,9 +26,11 @@ that is still shared behind the scenes.
 #include "rodent/engine.h" // public API only -- this also proves the header stands alone
 
 #include <cctype>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <future>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -103,6 +108,90 @@ static std::string RunScript(const std::vector<std::string> &lines) {
     return out;
 }
 
+// Whether `haystack` contains `needle`. Spelled out so the checks below read as
+// assertions rather than as npos comparisons.
+static bool Contains(const std::string &haystack, const char *needle) {
+    return haystack.find(needle) != std::string::npos;
+}
+
+// `go infinite` on one instance, Stop() from another thread, while a second
+// instance searches alongside it.
+//
+// Two things are proved at once, and both matter to an embedder: the search really
+// does end on Stop() (an infinite search has no other way out), and Stop() reaches
+// exactly one instance -- B is driven to completion untouched. The wait is bounded
+// by a future, so a Stop() that does not work fails the test instead of hanging the
+// suite forever.
+static bool StopChecks() {
+
+    std::string outA, outB;
+    std::mutex mA, mB;
+    bool ok = true;
+
+    auto check = [&](bool cond, const char *msg) {
+        std::printf("  [%s] %s\n", cond ? "PASS" : "FAIL", msg);
+        if (!cond)
+            ok = false;
+    };
+
+    rodent::Engine engB([&](const char *s) {
+        std::lock_guard<std::mutex> g(mB);
+        outB += s;
+    });
+    rodent::Engine engA([&](const char *s) {
+        std::lock_guard<std::mutex> g(mA);
+        outA += s;
+    });
+
+    for (rodent::Engine *e : {&engA, &engB}) {
+        e->ProcessLine("uci");
+        e->ProcessLine("isready");
+        e->ProcessLine("setoption name UseBook value false");
+        e->ProcessLine("position startpos");
+    }
+
+    // A searches forever on its own thread; B runs a bounded search on ours.
+    std::packaged_task<void()> searchA([&] { engA.ProcessLine("go infinite"); });
+    std::future<void> doneA = searchA.get_future();
+    std::thread threadA(std::move(searchA));
+
+    engB.ProcessLine("go nodes 100000");
+
+    // Let A actually get into the search before aborting it: a Stop() raised before
+    // `go` runs would be cleared on entry (uci.cpp resets the flag), and the test
+    // would hang for the right reason but look like the wrong one.
+    for (int waited = 0; waited < 200; ++waited) {
+        {
+            std::lock_guard<std::mutex> g(mA);
+            if (Contains(outA, "info depth "))
+                break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+
+    engA.Stop();
+    const bool returned =
+        doneA.wait_for(std::chrono::seconds(10)) == std::future_status::ready;
+    if (returned)
+        threadA.join();
+    else
+        threadA.detach(); // the process is failing anyway; do not block on the join
+
+    check(returned, "Stop(): the infinite search returned");
+    if (returned) {
+        std::lock_guard<std::mutex> g(mA);
+        check(Contains(outA, "bestmove"), "Stop(): a bestmove was still delivered");
+    }
+    {
+        std::lock_guard<std::mutex> g(mB);
+        check(Contains(outB, "bestmove"),
+              "Stop(): the other instance finished its own search");
+    }
+
+    // Only meaningful once the aborted thread is gone: ~Engine joins A's workers.
+    return ok && returned;
+}
+
 int main() {
 
     // Host responsibility (not the library's): resolve the resource directory once.
@@ -173,6 +262,9 @@ int main() {
     check(seqA == conA, "A: concurrent output == sequential output");
     check(seqB == conB, "B: concurrent output == sequential output");
     check(seqA != seqB, "A != B (eval override applied; no cross-instance contamination)");
+
+    if (!StopChecks())
+        ++failures;
 
     if (failures) {
         std::printf("FAILED (%d)\n", failures);
