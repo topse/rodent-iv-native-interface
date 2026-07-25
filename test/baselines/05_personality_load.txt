@@ -1,52 +1,59 @@
 info depth 1
-info depth 1 time <T> nodes 2 nps <N> score cp -41 pv b4b2 
+info depth 1 time <T> nodes 2 nps <N> score cp -39 pv b4b2 
 info depth 2
-info depth 2 time <T> nodes 168 nps <N> score cp -29 pv b4b2 e3d2 
+info depth 2 time <T> nodes 169 nps <N> score cp -26 pv b4b2 e3d2 
 info depth 3
-info depth 3 time <T> nodes 820 nps <N> score cp -7 pv b4b2 e3d2 a8b8 
+info depth 3 time <T> nodes 589 nps <N> score cp -10 pv b4b2 e3d2 a8b8 
 info depth 4
-info depth 4 time <T> nodes 1574 nps <N> score cp -31 pv b4b2 e3d2 b2b6 d3d4 a8d8 
+info depth 4 time <T> nodes 1429 nps <N> score cp -25 pv b4b2 e3d2 b2b6 d2f2 f6g4 f2b6 c7b6 
 info depth 5
-info depth 5 time <T> nodes 2476 nps <N> score cp -49 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 
+info depth 5 time <T> nodes 2601 nps <N> score cp -47 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 
 info depth 6
-info depth 6 time <T> nodes 4933 nps <N> score cp -62 pv b4b2 e3d2 b2a3 f3d4 a8d8 f1f6 d8d4 
+info depth 6 time <T> nodes 5350 nps <N> score cp -59 pv b4b2 e3d2 b2a3 f3d4 a3c5 c3e2 
 info depth 7
-info depth 7 time <T> nodes 14521 nps <N> score cp -83 pv b4b2 e3d2 b2a3 f3e5 a8d8 a1d1 a3c5 d3d4 
+info depth 7 time <T> nodes 15451 nps <N> score cp -76 pv b4b2 e3d2 b2a3 f3e5 a8d8 d3d4 c6c5 
 info depth 8
-info depth 8 time <T> nodes 17075 nps <N> score cp -74 pv b4b2 
-info depth 8 time <T> nodes 17508 nps <N> score cp -67 pv b4b2 
-info depth 8 time <T> nodes 18798 nps <N> score cp -60 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 b6a5 b1b7 e6c4 
+info depth 8 time <T> nodes 16548 nps <N> score cp -68 pv b4b2 
+info depth 8 time <T> nodes 16889 nps <N> score cp -60 pv b4b2 
+info depth 8 time <T> nodes 18735 nps <N> score cp -74 pv b4b2 e3d2 b2a3 a1b1 a8b8 b1b8 e8b8 f3e5 c6c5 
 info depth 9
-info depth 9 time <T> nodes 26514 nps <N> score cp -70 pv b4b2 e3d2 b2b6 d3d4 a8d8 f1b1 b6a7 e4e5 f6g4 d2g5 
+info depth 9 time <T> nodes 21100 nps <N> score cp -66 pv b4b2 
+info depth 9 time <T> nodes 21774 nps <N> score cp -58 pv b4b2 
+info depth 9 time <T> nodes 24097 nps <N> score cp -54 pv b4b2 e3d2 b2a3 a1b1 a8b8 b1b8 e8b8 f3e5 b8b2 d3d4 
 info depth 10
-info depth 10 time <T> nodes 45266 nps <N> score cp -97 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 
+info depth 10 time <T> nodes 34354 nps <N> score cp -64 pv b4b2 e3d2 b2a3 a1b1 a8b8 b1b8 e8b8 f3e5 c6c5 e5c6 b8b2 
 info depth 11
-info depth 11 time <T> nodes 55205 nps <N> score cp -92 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 f3g5 c6c4 
+info depth 11 time <T> nodes 38537 nps <N> score cp -56 pv b4b2 
+info depth 11 time <T> nodes 73947 nps <N> score cp -50 pv b4b2 e3d2 b2a3 c3e2 c6c5 a1b1 a8b8 d2c3 a3c3 e2c3 b8b6 f3e5 
 info depth 12
-info depth 12 time <T> nodes 77074 nps <N> score cp -86 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 f7f6 e5f6 g7f6 
+info depth 12 time <T> nodes 96079 nps <N> score cp -54 pv b4b2 e3d2 b2a3 c3e2 c6c5 a1b1 a8b8 d2c3 a3c3 e2c3 b8b6 b1b6 c7b6 f3e5 
 bestmove b4b2 ponder e3d2
 info depth 1
-info depth 1 time <T> nodes 3 nps <N> score cp -41 pv b4b2 
+info depth 1 time <T> nodes 2 nps <N> score cp 92 pv b4b2 
 info depth 2
-info depth 2 time <T> nodes 108 nps <N> score cp -29 pv b4b2 e3d2 
+info depth 2 time <T> nodes 180 nps <N> score cp 113 pv b4b2 e3d2 
 info depth 3
-info depth 3 time <T> nodes 281 nps <N> score cp -31 pv b4b2 e3d2 b2b6 d3d4 a8d8 
+info depth 3 time <T> nodes 561 nps <N> score cp 138 pv b4b2 e3d2 f6g4 
 info depth 4
-info depth 4 time <T> nodes 539 nps <N> score cp -31 pv b4b2 e3d2 b2b6 d3d4 a8d8 
+info depth 4 time <T> nodes 1101 nps <N> score cp 87 pv b4b2 e3d2 f6g4 a1b1 
 info depth 5
-info depth 5 time <T> nodes 844 nps <N> score cp -49 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 
+info depth 5 time <T> nodes 2633 nps <N> score cp 61 pv b4b2 e3d2 b2b6 d3d4 b6b2 a1b1 
 info depth 6
-info depth 6 time <T> nodes 1197 nps <N> score cp -73 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 b6a5 b1b7 
+info depth 6 time <T> nodes 4836 nps <N> score cp 43 pv b4b2 e3d2 f6g4 a1b1 b2a3 b1b7 
 info depth 7
-info depth 7 time <T> nodes 1985 nps <N> score cp -60 pv b4b2 e3d2 b2b6 d3d4 a8d8 a1b1 b6a5 b1b7 e6c4 
+info depth 7 time <T> nodes 7019 nps <N> score cp 49 pv b4b2 e3d2 b2b6 d3d4 b6b4 f3e5 c6c5 e5c6 
 info depth 8
-info depth 8 time <T> nodes 3337 nps <N> score cp -79 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 a1b1 b6a5 c3d5 a5d2 f3d2 c6d5 
+info depth 8 time <T> nodes 14706 nps <N> score cp 20 pv b4b2 e3d2 b2b6 d3d4 b6b4 f1b1 b4a3 f3e5 c6c5 
 info depth 9
-info depth 9 time <T> nodes 4082 nps <N> score cp -79 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 a1b1 b6a5 c3d5 a5d2 f3d2 c6d5 
+info depth 9 time <T> nodes 40011 nps <N> score cp 36 pv b4b2 
+info depth 9 time <T> nodes 42220 nps <N> score cp 52 pv b4b2 
+info depth 9 time <T> nodes 44409 nps <N> score cp 52 pv b4b2 e3d2 a8b8 f3e5 b2a3 d3d4 b8b2 e5c6 e6c4 
 info depth 10
-info depth 10 time <T> nodes 5223 nps <N> score cp -86 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 f7f6 e5f6 g7f6 
+info depth 10 time <T> nodes 48727 nps <N> score cp 60 pv b4b2 
+info depth 10 time <T> nodes 52900 nps <N> score cp 59 pv b4b2 e3d2 a8b8 f3e5 b2a3 d3d4 b8b6 d2d3 c6c5 d4d5 
 info depth 11
-info depth 11 time <T> nodes 6724 nps <N> score cp -86 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 f7f6 e5f6 g7f6 
+info depth 11 time <T> nodes 119440 nps <N> score cp 49 pv b4b2 e3d2 b2a3 f3e5 a6a5 f1f4 a8d8 a1d1 d8d6 d3d4 e6a2 
 info depth 12
-info depth 12 time <T> nodes 9585 nps <N> score cp -86 pv b4b2 e3d2 b2b6 d3d4 a8d8 e4e5 f6d5 c3d5 c6d5 a1b1 b6c6 c2c3 f7f6 e5f6 g7f6 
+info depth 12 time <T> nodes 134837 nps <N> score cp 57 pv b4b2 
+info depth 12 time <T> nodes 150975 nps <N> score cp 58 pv b4b2 e3d2 b2a3 a1b1 a8b8 f3g5 b8b1 f1b1 e6a2 b1b7 a3a5 g5f3 a2e6 
 bestmove b4b2 ponder e3d2

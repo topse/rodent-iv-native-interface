@@ -1,4 +1,6 @@
-# Bench: locks the node count (build + search identity). Deterministic and
-# personality-invariant (bench uses the default eval regardless of personality).
+# Bench: locks the node count (build + search identity). Deterministic, and run
+# on the default personality -- bench is NOT personality-invariant (loading Tal
+# moves it from 557513 to 603848 nodes), so no personality is loaded here and the
+# baseline stays a measure of the build and the search alone.
 bench 8
 quit

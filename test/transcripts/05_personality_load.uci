@@ -1,14 +1,23 @@
-# Locks the ReadPersonality path (PersonalityFile + Personality combo forms).
-# NOTE (characterisation, not aspiration): in the current build a mid-session
-# personality load changes only the opening book, not the mid-game eval, so with
-# the book off these searches are identical to the default personality. This
-# baseline locks that behaviour -- if a refactor changes personality loading, the
-# diff catches it.
+# Locks the ReadPersonality path in both its forms: PersonalityFile (a file name)
+# and the Personality combo (an alias from basic.ini).
+#
+# Each load must change the search that follows it -- different nodes, score and
+# pv from the default personality and from each other. That is the whole point of
+# personalities, and it is easy to lose silently: ParseSetoption ignores a command
+# it does not recognise and matches the combo value with strcmp, so a malformed or
+# mis-cased line is a no-op the engine never complains about. Both mistakes were
+# in this transcript until 2026-07-25 -- `PersonalityFile cloe.txt` without the
+# `value` keyword, and `Personality value tal` against the alias `Tal` -- which is
+# how "a personality load does not affect the eval" came to be written down as an
+# upstream quirk. It never was one.
+#
+# UseBook is off because book moves are time-seeded random; with it off, the
+# evaluation is the only thing a personality can still change here.
 setoption name Threads value 1
 setoption name UseBook value false
-setoption name PersonalityFile cloe.txt
+setoption name PersonalityFile value cloe.txt
 position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
 go depth 12
-setoption name Personality value tal
+setoption name Personality value Tal
 go depth 12
 quit

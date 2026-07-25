@@ -1,9 +1,16 @@
 # Degrade-not-crash: loading a nonexistent personality file must not crash or
 # exit; the engine stays alive and keeps searching. (Plan risk item: personality
 # reads during setoption must degrade via output, not process death.)
+#
+# The `value` keyword matters: without it ParseSetoption does not recognise the
+# command at all, so the load is never attempted and this transcript proves
+# nothing -- which is exactly what it did until 2026-07-25. Note that a failed
+# load still resets the weights (ReadPersonality calls DefaultWeights before it
+# opens the file), so the search below is the default personality's, not
+# necessarily the one from before the failed load.
 setoption name Threads value 1
 setoption name UseBook value false
-setoption name PersonalityFile this_file_does_not_exist_zzz.txt
+setoption name PersonalityFile value this_file_does_not_exist_zzz.txt
 position fen r3r1k1/2p2ppp/p1p1bn2/8/1q2P3/2NPQN2/PPP3PP/R4RK1 b - - 2 15
 go depth 12
 isready

@@ -107,6 +107,14 @@ These are settled; revisit them deliberately, not by accident.
   multi-instance suite under TSan be the judge.
 - Explain *why* in code comments where upstream's structure is surprising; keep this file free
   of implementation detail and of history.
-- Upstream quirks are characterised, not fixed: personality loads that do not affect the
-  evaluation, personality-invariant bench, time-seeded book randomness. Changing them is a
-  separate, deliberate decision with the maintainer.
+- Upstream quirks are characterised, not fixed: a failed personality load resetting the
+  weights to default, exact (case-sensitive) alias matching, time-seeded book randomness.
+  Changing them is a separate, deliberate decision with the maintainer.
+- **Prove that a test exercises what it names.** Two of the quirks listed here until
+  2026-07-25 — "personality loads do not affect the evaluation" and "bench is
+  personality-invariant" — were not engine behaviour at all: the transcripts' load commands
+  were malformed, so no personality was ever loaded, and the baselines faithfully recorded the
+  default one. A UCI engine answers an unrecognised or unmatched `setoption` with silence, so
+  a diff-based harness cannot tell "applied" from "ignored" on its own. When a case exists to
+  show that X changes behaviour, assert the *difference* (`check_liveness.py`), not just that
+  the output is stable.

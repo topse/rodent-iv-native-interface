@@ -100,7 +100,7 @@ test/run_harness.sh        # just the transcript/liveness harness
   change shows up as a diff.
 - **Bench identity** — the search's node count at a fixed depth must not move.
 - **Liveness** — `stop` interrupts a search, `quit` during a search exits cleanly, the book
-  returns a move.
+  returns a move, and a loaded personality actually changes the search.
 - **Multi-instance suite** — two engines in one process, run sequentially and then
   concurrently; each instance's concurrent output must equal its own sequential output, under
   ASan and TSan.
@@ -147,10 +147,17 @@ for anyone (or anything) changing the fork.
   at a time, is safe. A relative directory is anchored at the current one when you call
   `SetResourceDir`, so it survives those working-directory changes. Per-instance explicit
   paths are the next API refinement.
-- **A mid-session personality load changes only the opening book, not the evaluation** —
-  upstream behaviour, characterised by the harness, not "fixed" here. Direct eval
-  `setoption`s do change the search.
-- **Bench is personality-invariant** for the same reason.
+- **A personality is loaded by an *exactly* spelled command.** `setoption` needs the `value`
+  keyword (`ParseSetoption` splits on `" name "` and `" value "`), and the `Personality` combo
+  matches its value with `strcmp` against the aliases in `personalities/basic.ini` — `Tal`,
+  not `tal`. Neither miss produces a diagnostic; the engine simply does nothing. Two entries
+  in this list used to claim that personality loads do not reach the evaluation and that bench
+  is personality-invariant, and both were artefacts of transcripts that made exactly those two
+  mistakes (fixed 2026-07-25; `test/README.md` has the numbers). Personalities do change the
+  evaluation, and bench moves with them.
+- **A failed personality load still resets the evaluation weights** — `ReadPersonality` calls
+  `DefaultWeights()` before it opens the file, so a missing file leaves the default
+  personality, not the previously loaded one.
 - **Book move selection is time-seeded random**, so book output is not reproducible; the
   harness covers it with a liveness check and turns the book off elsewhere.
 - **Windows and Android are not built or tested here** — no devices. The `#ifdef` structure

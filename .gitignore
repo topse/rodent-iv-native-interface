@@ -2,6 +2,9 @@
 /build/
 /cmake-build-*/
 
+# Python bytecode from the test harness (check_liveness.py imports filter.py)
+__pycache__/
+
 # Prerequisites
 *.d
 
